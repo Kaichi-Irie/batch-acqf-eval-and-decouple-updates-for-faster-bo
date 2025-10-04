@@ -15,6 +15,7 @@ from src.benchmark_funcs import (
     rosenbrock_grad,
     rosenbrock_hess,
 )
+from src.stacking_wrapper import stack_f, stack_grad
 
 # %%
 RNG_SEED = 200
@@ -25,22 +26,6 @@ METHOD = "BFGS"  # "BFGS"
 OBJ_NAME = "Rosenbrock"
 OUTPUT_DIR = "hessian_comparison"
 np.random.seed(RNG_SEED)
-
-
-def stack_f(func, batch_size: int, dim: int):
-    def f(x_flat):
-        x = np.reshape(x_flat, (batch_size, dim))
-        return np.sum(func(x))
-
-    return f
-
-
-def stack_grad(grad, batch_size: int, dim: int):
-    def g(x_flat):
-        x = np.reshape(x_flat, (batch_size, dim))
-        return grad(x).flatten()
-
-    return g
 
 
 def run_stacked_optimization(

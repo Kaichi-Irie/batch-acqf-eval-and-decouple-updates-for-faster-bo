@@ -17,33 +17,21 @@ from src.benchmark_funcs import (
     rosenbrock_func,
     rosenbrock_grad,
 )
+from src.stacking_wrapper import stack_f, stack_grad
 
-# ========= 設定 ========= #
-RNG_SEED = 200
+SEED = 42
 DIMENSION = 5
-METHOD = "BFGS"  # "BFGS" も可
-# 探索範囲。これが広すぎるとQ1, Q3の帯が広くなりすぎて見づらい（METHOD="L-BFGS-B"の場合のみ）
+MEMORY_SIZE = 10
 LB, UB = (0, 3)
+BOUNDS = [(LB, UB)] * DIMENSION
+METHOD = "BFGS"  # "BFGS", "L-BFGS-B"
+if METHOD == "BFGS":
+    MEMORY_SIZE = None  # BFGSではメモリサイズは不要
+    BOUNDS = None
 
 OBJ_NAME = "Rosenbrock"
-np.random.seed(RNG_SEED)
-
-
-# ========= ユーティリティ ========= #
-def stack_f(func, batch_size: int, dim: int):
-    def f(x_flat):
-        x = np.reshape(x_flat, (batch_size, dim))
-        return np.sum(func(x))
-
-    return f
-
-
-def stack_grad(grad, batch_size: int, dim: int):
-    def g(x_flat):
-        x = np.reshape(x_flat, (batch_size, dim))
-        return grad(x).flatten()
-
-    return g
+OUTPUT_DIR = "results/figures/convergence_plot"
+np.random.seed(SEED)
 
 
 def run_stacked_with_history(
@@ -188,7 +176,6 @@ def plot_with_quartiles(
     ylabel: str = "Objective (log scale)",
     outpath: str | None = None,
 ) -> None:
-    """各系列の中央値と第1・第3四分位範囲を描画"""
     assert len(q25s) == len(q50s) == len(q75s) == len(labels)
 
     plt.figure(figsize=(8, 6))
@@ -261,7 +248,6 @@ for batch_size, memory_size in itertools.product(batch_sizes, memory_sizes):
 # )
 
 
-# 4分位数範囲でのプロットの方が帯が狭くて見やすい
 plot_with_quartiles(
     q25s,
     q50s,
@@ -271,6 +257,3 @@ plot_with_quartiles(
     ylabel="Average Objective per Problem (log scale)",
     outpath=f"stacking_convergence/convergence_{OBJ_NAME}_{METHOD}_D{DIMENSION}_UB{UB}_LB{LB}_M{10}_quartiles.pdf",
 )
-
-
-# %%
