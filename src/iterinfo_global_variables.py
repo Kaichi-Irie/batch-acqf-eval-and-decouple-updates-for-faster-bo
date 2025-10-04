@@ -1,0 +1,3 @@
+MAX_NITS = []
+TOTAL_NITS = []
+AVERAGE_NITS = []
