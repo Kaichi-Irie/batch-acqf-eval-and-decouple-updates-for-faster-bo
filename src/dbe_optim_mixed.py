@@ -1,10 +1,8 @@
-from __future__ import annotations
-
 import math
-from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
+from optuna._gp.acqf import BaseAcquisitionFunc
 from optuna._gp.scipy_blas_thread_patch import (
     single_blas_thread_if_scipy_v1_15_or_newer,
 )
@@ -12,14 +10,6 @@ from optuna.logging import get_logger
 
 from src import batched_lbfgsb as b_opt
 from src import iterinfo_global_variables as cfg
-
-if TYPE_CHECKING:
-    import scipy.optimize as so
-    from optuna._gp.acqf import BaseAcquisitionFunc
-else:
-    from optuna import _LazyImport
-
-    so = _LazyImport("scipy.optimize")
 
 _logger = get_logger(__name__)
 
@@ -116,11 +106,6 @@ def local_search_mixed_batched(
     tol: float = 1e-4,
     max_iter: int = 100,
 ) -> tuple[np.ndarray, np.ndarray]:
-    # This is a technique for speeding up optimization. We use an isotropic kernel, so scaling the
-    # gradient will make the hessian better-conditioned.
-    # NOTE: Ideally, separating lengthscales should be used for the constraint functions,
-    # but for simplicity, the ones from the objective function are being reused.
-    # TODO(kAIto47802): Think of a better way to handle this.
     lengthscales = acqf.length_scales[
         (cont_inds := acqf.search_space.continuous_indices)
     ]
@@ -165,10 +150,6 @@ def optimize_acqf_mixed(
     assert isinstance(f_vals, np.ndarray)
 
     max_i = np.argmax(f_vals)
-
-    # TODO(nabenabe): Benchmark the BoTorch roulette selection as well.
-    # https://github.com/pytorch/botorch/blob/v0.14.0/botorch/optim/initializers.py#L942
-    # We use a modified roulette wheel selection to pick the initial param for each local search.
     probs = np.exp(f_vals - f_vals[max_i])
     probs[max_i] = 0.0  # We already picked the best param, so remove it from roulette.
     probs /= probs.sum()
