@@ -90,8 +90,8 @@ n_trials = 30  # 回せるだけ回す~500
 function_ids = [6]  # , 15]  # [1,6,10,15,20]
 dimensions = [10]  # , 20, 40]  # [5,10,20]
 modes: list[SAMPLERMODE] = [
-    "stacking",
-    # "batched_acqf_eval",
+    "coupled_batch_evaluation",  # "CBE",
+    # "decoupled_batch_evaluation",  # "DBE",
     # "original",
 ]
 for function_id, dimension, seed, mode in product(

@@ -17,7 +17,7 @@ from src.benchmark_funcs import (
     rosenbrock_func,
     rosenbrock_grad,
 )
-from src.stacking_wrapper import stack_f, stack_grad
+from coupling_wrapper import couple_f, couple_grad
 
 SEED = 42
 DIMENSION = 5
@@ -34,7 +34,7 @@ OUTPUT_DIR = "results/figures/convergence_plot"
 np.random.seed(SEED)
 
 
-def run_stacked_with_history(
+def run_cbe_with_history(
     xs0: np.ndarray,
     method: str,
     lb: float,
@@ -44,10 +44,10 @@ def run_stacked_with_history(
     """スタック最適化（合計目的値の履歴を採取）"""
     assert xs0.ndim == 2
     batch_size, dim = xs0.shape
-    print(f"Running stacked optimization with B={batch_size}, D={dim}, method={method}")
+    print(f"Running CBE with B={batch_size}, D={dim}, method={method}")
     history = []
-    f = stack_f(rosenbrock_func, batch_size, dim)
-    g = stack_grad(rosenbrock_grad, batch_size, dim)
+    f = couple_f(rosenbrock_func, batch_size, dim)
+    g = couple_grad(rosenbrock_grad, batch_size, dim)
 
     if method == "L-BFGS-B":
         _, _, res = opt.fmin_l_bfgs_b(
@@ -220,7 +220,7 @@ for batch_size, memory_size in itertools.product(batch_sizes, memory_sizes):
 
     random_seed_histories = []
     for xs0 in random_initial_points:
-        res, hist = run_stacked_with_history(
+        res, hist = run_cbe_with_history(
             xs0, METHOD, LB, UB, memory_size=memory_size
         )
         print(f"Optimization result for B={batch_size}: {res}")
@@ -255,5 +255,5 @@ plot_with_quartiles(
     labels,
     f"Convergence Comparison (median ± IQR) {OBJ_NAME}, {METHOD}, D={DIMENSION}, BD={LB}~{UB}",
     ylabel="Average Objective per Problem (log scale)",
-    outpath=f"stacking_convergence/convergence_{OBJ_NAME}_{METHOD}_D{DIMENSION}_UB{UB}_LB{LB}_M{10}_quartiles.pdf",
+    outpath=f"convergence_plot/convergence_{OBJ_NAME}_{METHOD}_D{DIMENSION}_UB{UB}_LB{LB}_M{10}_quartiles.pdf",
 )

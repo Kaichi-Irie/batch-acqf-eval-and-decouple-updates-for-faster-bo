@@ -10,7 +10,6 @@ from optuna._gp.scipy_blas_thread_patch import (
 )
 from optuna.logging import get_logger
 
-from src import batched_lbfgsb as b_opt
 from src import iterinfo_global_variables as cfg
 
 if TYPE_CHECKING:
@@ -26,12 +25,12 @@ _logger = get_logger(__name__)
 
 def _gradient_ascent(
     acqf: BaseAcquisitionFunc,
-    initial_params_list: np.ndarray,  # (B,D)
-    initial_fvals: np.ndarray,  # (B,)
+    initial_params: np.ndarray,  # (B,D)
+    initial_fval: float,  #  (B,)
     continuous_indices: np.ndarray,
     lengthscales: np.ndarray,  # (D,)
     tol: float,
-) -> tuple[np.ndarray, np.ndarray, bool]:  # ((B,D), (B,), bool)
+) -> tuple[np.ndarray, float, bool]:
     """
     This function optimizes the acquisition function using preconditioning.
     Preconditioning equalizes the variances caused by each parameter and
@@ -48,91 +47,89 @@ def _gradient_ascent(
     As the domain of `x` is [0, 1], that of `z` becomes [0, 1/l].
     """
     if len(continuous_indices) == 0:
-        return initial_params_list, initial_fvals, False
-    batch_size, dimension = initial_params_list.shape
+        return initial_params, initial_fval, False
+    batch_size, dimension = initial_params.shape
     if len(continuous_indices) != dimension:
         raise ValueError("Incompatible continuous indices.")
 
-    normalized_params_buffer = initial_params_list.copy()
-    assert normalized_params_buffer.shape == (batch_size, dimension)
+    normalized_params = initial_params.copy()
+    assert normalized_params.shape == (batch_size, dimension)
 
-    def negative_acqf_with_grad(scaled_x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def negative_acqf_with_grad(scaled_x: np.ndarray) -> tuple[float, np.ndarray]:
         """
-        (b,D) -> ((b,), (b,D))
-        b corresponds to the number of batches that have not yet converged.
+        scaled_x: (B,D)
+        ->
+        f: (1,) # Sum
+        grad: (B*D,) # Flattened
         """
+        scaled_x = scaled_x.reshape(batch_size, dimension)
         # Scale back to the original domain, i.e. [0, 1], from [0, 1/s].
-        not_converged_batch_size = len(scaled_x)
-        assert scaled_x.shape == (not_converged_batch_size, dimension), (
-            f"Expected (b,D), got {scaled_x.shape}."
-        )
-        normalized_params_buffer[:not_converged_batch_size, continuous_indices] = (
-            scaled_x * lengthscales
-        )
-        # (fvals, grads) = acqf.eval_acqf_with_grad(normalized_params)
-        x_tensor = torch.from_numpy(
-            normalized_params_buffer[:not_converged_batch_size]
-        ).requires_grad_(True)
-        assert x_tensor.shape == (not_converged_batch_size, dimension)
+        # (B,D) = (B,D) * (D,)
+        normalized_params[:, continuous_indices] = scaled_x * lengthscales
+
+        # (fval, grad) = acqf.eval_acqf_with_grad(normalized_params)  # (1,), (D,)
+
+        # fvals: (B,), x_tensor: (B,D)
+        x_tensor = torch.from_numpy(normalized_params).requires_grad_(True)
         fvals = acqf.eval_acqf(x_tensor)
-        fvals.sum().backward()
-        grads = x_tensor.grad.detach().numpy()  # type: ignore
-        fvals = fvals.detach().numpy()
+        # fval: (1,)
+        fval = fvals.sum()
+        fval.backward()  # type: ignore
+        # grad: (B,D)
+        grad = x_tensor.grad.detach().numpy()  # type: ignore
+        assert grad.shape == (batch_size, dimension)
         # Flip sign because scipy minimizes functions.
         # Let the scaled acqf be g(x) and the acqf be f(sx), then dg/dx = df/dx * s.
-        assert fvals.shape == (not_converged_batch_size,)
-        assert grads.shape == (not_converged_batch_size, dimension)
-        return -fvals, -grads[:, continuous_indices] * lengthscales
+        grad = -grad[:, continuous_indices] * lengthscales
+        assert grad.shape == (batch_size, dimension)
+        grad = grad.ravel()  # (B*D,)
+        assert grad.shape == (batch_size * dimension,)
+        return -fval.item(), grad
 
     with single_blas_thread_if_scipy_v1_15_or_newer():
         # x0: (B,D) - flatten -> (B*D,)
-        x0 = normalized_params_buffer[:, continuous_indices] / lengthscales
+        x0 = normalized_params[:, continuous_indices] / lengthscales
         assert lengthscales.shape == (dimension,)
         assert len(continuous_indices) == dimension
-        assert normalized_params_buffer.shape == (batch_size, dimension)
+        assert normalized_params.shape == (batch_size, dimension)
         assert x0.shape == (batch_size, dimension)
         # individual_bounds = [(0, 1 / s) for s in lengthscales]  # (D,2)
         # make individual bounds numpy array
-        bounds = np.array([(0, 1 / s) for s in lengthscales])  # (D, 2)
-        # TODO
-        scaled_cont_x_opts, neg_fval_opts, info = b_opt.batched_lbfgsb(
-            func_and_grad=negative_acqf_with_grad,  # type: ignore
-            bounds=bounds,
-            x0=x0,
-            max_iters=200,
+        individual_bounds = np.array([(0, 1 / s) for s in lengthscales])
+        assert individual_bounds.shape == (dimension, 2)
+        bounds = np.tile(individual_bounds, (batch_size, 1))  # (B*D,2)
+        assert bounds.shape == (batch_size * dimension, 2)
+        # bounds = [tuple(b) for b in bounds]
+        scaled_cont_x_opt, neg_fval_opt, info = so.fmin_l_bfgs_b(
+            func=negative_acqf_with_grad,
+            x0=x0.flatten(),
+            bounds=bounds.tolist(),
             pgtol=math.sqrt(tol),
+            maxiter=200,
         )
-        assert scaled_cont_x_opts.shape == (batch_size, dimension)
-        assert neg_fval_opts.shape == (batch_size,)
+        # reshape from (B*D,) to (B,D)
+        scaled_cont_x_opt = scaled_cont_x_opt.reshape(batch_size, dimension)
+        cfg.MAX_NITS.append(info["nit"])
+        cfg.TOTAL_NITS.append(info["nit"])
+        cfg.AVERAGE_NITS.append(info["nit"])
 
-        cfg.MAX_NITS.append(max(info["n_iterations"]))
-        cfg.TOTAL_NITS.append(sum(info["n_iterations"]))  # type: ignore
-        cfg.AVERAGE_NITS.append(sum(info["n_iterations"]) / len(info["n_iterations"]))  # type: ignore
+    if -neg_fval_opt > initial_fval and info["nit"] > 0:  # Improved.
+        # `nit` is the number of iterations.
+        normalized_params[:, continuous_indices] = (
+            scaled_cont_x_opt * lengthscales
+        )  # (B,D)
+        return normalized_params, -neg_fval_opt, True
 
-        # scaled_cont_x_opts = scaled_cont_x_opts.reshape(batch_size, dimension)
-
-    normalized_params_buffer[:, continuous_indices] = (
-        scaled_cont_x_opts * lengthscales
-    )  # (B,D)
-    return normalized_params_buffer, -neg_fval_opts, True
+    return initial_params, initial_fval, False  # No improvement.
 
 
-def local_search_mixed_batched_acqf_eval(
+def local_search_mixed_coupled(
     acqf: BaseAcquisitionFunc,
-    initial_normalized_params_list: np.ndarray,  # (D,) -> (B,D)
+    initial_normalized_params_list: np.ndarray,  # (B,D)
     *,
     tol: float = 1e-4,
-) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Returns
-    xs: (B,D)
-    fs: (B,)
-    """
+) -> tuple[np.ndarray, float]:
     continuous_indices = acqf.search_space.continuous_indices
-    # assert initial_normalized_params_list.ndim == 2
-    # if len(continuous_indices) != len(initial_normalized_params_list):
-    #     raise ValueError("Only continuous optimization is supported.")
-
     # This is a technique for speeding up optimization.
     # We use an isotropic kernel, so scaling the gradient will make
     # the hessian better-conditioned.
@@ -144,19 +141,19 @@ def local_search_mixed_batched_acqf_eval(
     assert lengthscales.shape == (dimension,)
     best_normalized_params_list = initial_normalized_params_list.copy()  # (D,) -> (B,D)
     assert best_normalized_params_list.shape == (batch_size, dimension)
-    best_fvals = np.array(
+    best_fval = sum(
         [float(acqf.eval_acqf_no_grad(p)) for p in best_normalized_params_list]
     )
 
-    (best_normalized_params_list, best_fvals, _) = _gradient_ascent(
+    (best_normalized_params_list, best_fval, _) = _gradient_ascent(
         acqf,
         best_normalized_params_list,
-        best_fvals,
+        best_fval,
         continuous_indices,
         lengthscales,
         tol,
     )
-    return best_normalized_params_list, best_fvals
+    return best_normalized_params_list, best_fval
 
 
 def optimize_acqf_mixed(
@@ -223,10 +220,10 @@ def optimize_acqf_mixed(
     )
     assert x_warmstarts.shape == (batch_size, dimension)
     # xs: (B,D)
-    xs, fs = local_search_mixed_batched_acqf_eval(acqf, x_warmstarts, tol=tol)
+    xs, f_sum = local_search_mixed_coupled(acqf, x_warmstarts, tol=tol)
     assert xs.shape == (batch_size, dimension)
-    assert fs.shape == (batch_size,)
-    for x, f in zip(xs, fs):
+    for x in xs:
+        f = float(acqf.eval_acqf_no_grad(x))
         if f > best_f:
             best_x = x
             best_f = f

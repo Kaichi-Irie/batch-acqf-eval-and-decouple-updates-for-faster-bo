@@ -15,7 +15,7 @@ from src.benchmark_funcs import (
     rosenbrock_grad,
     rosenbrock_hess,
 )
-from src.stacking_wrapper import stack_f, stack_grad
+from coupling_wrapper import couple_f, couple_grad
 
 # %%
 RNG_SEED = 200
@@ -28,11 +28,11 @@ OUTPUT_DIR = "hessian_comparison"
 np.random.seed(RNG_SEED)
 
 
-def run_stacked_optimization(
+def run_coupled_batch_evaluation(
     x0: np.ndarray, method: str, lb: float, ub: float, batch_size: int, dim: int
 ):
-    f = stack_f(rosenbrock_func, batch_size, dim)
-    g = stack_grad(rosenbrock_grad, batch_size, dim)
+    f = couple_f(rosenbrock_func, batch_size, dim)
+    g = couple_grad(rosenbrock_grad, batch_size, dim)
     res = opt.minimize(
         f,
         x0.flatten(),
@@ -40,7 +40,7 @@ def run_stacked_optimization(
         jac=g,
         bounds=[(lb, ub)] * (batch_size * dim) if method == "L-BFGS-B" else None,
     )
-    print(f"Stacked Optimization: {res.message}")
+    print(f"CBE Optimization: {res.message}")
     return res
 
 
@@ -178,11 +178,11 @@ xs0 = np.random.uniform(LB, UB, size=(BATCH_SIZE, DIMENSION))
 # 真の最適解（検算用）
 x_min = get_rosen_minimum(DIMENSION)
 
-# --- Stacking ---
-res_stack = run_stacked_optimization(xs0, METHOD, LB, UB, BATCH_SIZE, DIMENSION)
+# --- Coupled Batched Evaluation ---
+res_cbe = run_coupled_batch_evaluation(xs0, METHOD, LB, UB, BATCH_SIZE, DIMENSION)
 # assert np.allclose(res_stack.x, np.tile(x_min, BATCH_SIZE), atol=1e-2)
 
-H_stack, Hinv_stack = hess_and_hess_inv_from_result(res_stack, METHOD)
+H_cbe, Hinv_cbe = hess_and_hess_inv_from_result(res_cbe, METHOD)
 
 # --- Sequential ---
 results_seq = run_sequential_optimization(xs0, METHOD, LB, UB)
@@ -199,27 +199,27 @@ Hinv_true_seq = true_hess_inv_block(pts_seq)
 print("--- Condition Numbers (Hessian and Inverse are the same) ---")
 print(f"True Hessian:      {np.linalg.cond(H_true_seq):.2e}")
 print(f"Sequential Approx: {np.linalg.cond(H_seq):.2e}")
-print(f"Stacked Approx:    {np.linalg.cond(H_stack):.2e}")
+print(f"CBE Approx:    {np.linalg.cond(H_cbe):.2e}")
 
 # --- 誤差（Frobenius） ---
 print("\n--- Frobenius Norm Errors (Hessian) ---")
 err_seq = np.linalg.norm(H_seq - H_true_seq, ord="fro")
-err_stack = np.linalg.norm(H_stack - H_true_seq, ord="fro")
+err_cbe = np.linalg.norm(H_cbe - H_true_seq, ord="fro")
 print(f"Sequential Approx Error: {err_seq:.2e}")
-print(f"Stacked   Approx Error:  {err_stack:.2e}")
+print(f"CBE   Approx Error:  {err_cbe:.2e}")
 
 print("\n--- Frobenius Norm Errors (Hessian Inverse) ---")
 err_seq_inv = np.linalg.norm(Hinv_seq - Hinv_true_seq, ord="fro")
-err_stack_inv = np.linalg.norm(Hinv_stack - Hinv_true_seq, ord="fro")
+err_cbe_inv = np.linalg.norm(Hinv_cbe - Hinv_true_seq, ord="fro")
 print(f"Sequential Approx Inv Error: {err_seq_inv:.2e}")
-print(f"Stacked   Approx Inv Error:  {err_stack_inv:.2e}")
+print(f"CBE Approx Inv Error:  {err_cbe_inv:.2e}")
 # %%
 
 # --- ヒートマップ（真値・逐次近似・スタック近似） ---
 # Hessian
 compare_hessians(
-    [H_true_seq, H_seq, H_stack],
-    ["True Hessian", "Sequential Approx", "Stacking Approx"],
+    [H_true_seq, H_seq, H_cbe],
+    ["True Hessian", "Sequential Approx", "CBE Approx"],
     f"Hessian Comparison ({OBJ_NAME}, {METHOD}, B={BATCH_SIZE}, D={DIMENSION})",
     true_hess=H_true_seq,
     filename=f"hessian_comparison_all_{OBJ_NAME}_{METHOD}_B{BATCH_SIZE}_D{DIMENSION}.pdf",
@@ -227,13 +227,13 @@ compare_hessians(
 
 
 # --- 比較図（真値 vs 近似） ---
-err_max = max(np.abs(H_true_seq - H_seq).max(), np.abs(H_true_seq - H_stack).max())
+err_max = max(np.abs(H_true_seq - H_seq).max(), np.abs(H_true_seq - H_cbe).max())
 compare_hess_and_error(
     H_true_seq,
-    H_stack,
-    f"Stacking Approximation ({OBJ_NAME}, {METHOD}, B={BATCH_SIZE}, D={DIMENSION})",
+    H_cbe,
+    f"CBE Approximation ({OBJ_NAME}, {METHOD}, B={BATCH_SIZE}, D={DIMENSION})",
     error_max=err_max,
-    filename=f"hessian_comparison_stacking_{OBJ_NAME}_{METHOD}_B{BATCH_SIZE}_D{DIMENSION}.pdf",
+    filename=f"hessian_comparison_CBE_{OBJ_NAME}_{METHOD}_B{BATCH_SIZE}_D{DIMENSION}.pdf",
 )
 compare_hess_and_error(
     H_true_seq,
@@ -246,8 +246,8 @@ compare_hess_and_error(
 # %%
 # Hessian Inverse
 compare_hessians(
-    [Hinv_true_seq, Hinv_seq, Hinv_stack],
-    ["True Hessian Inv", "Sequential Approx Inv", "Stacking Approx Inv"],
+    [Hinv_true_seq, Hinv_seq, Hinv_cbe],
+    ["True Hessian Inv", "Sequential Approx Inv", "CBE Approx Inv"],
     f"Hessian Inverse Comparison ({OBJ_NAME}, {METHOD}, B={BATCH_SIZE}, D={DIMENSION})",
     true_hess=Hinv_true_seq,
     filename=f"hessian_inv_comparison_all_{OBJ_NAME}_{METHOD}_B{BATCH_SIZE}_D{DIMENSION}.pdf",
@@ -255,14 +255,14 @@ compare_hessians(
 
 # --- 比較図（真値 vs 近似） ---
 err_max_inv = max(
-    np.abs(Hinv_true_seq - Hinv_seq).max(), np.abs(Hinv_true_seq - Hinv_stack).max()
+    np.abs(Hinv_true_seq - Hinv_seq).max(), np.abs(Hinv_true_seq - Hinv_cbe).max()
 )
 compare_hess_and_error(
     Hinv_true_seq,
-    Hinv_stack,
-    f"Stacking Approximation Inv ({OBJ_NAME}, {METHOD}, B={BATCH_SIZE}, D={DIMENSION})",
+    Hinv_cbe,
+    f"CBE Approximation Inv ({OBJ_NAME}, {METHOD}, B={BATCH_SIZE}, D={DIMENSION})",
     error_max=err_max_inv,
-    filename=f"hessian_inv_comparison_stacking_{OBJ_NAME}_{METHOD}_B{BATCH_SIZE}_D{DIMENSION}.pdf",
+    filename=f"hessian_inv_comparison_CBE_{OBJ_NAME}_{METHOD}_B{BATCH_SIZE}_D{DIMENSION}.pdf",
     is_inverse=True,
 )
 compare_hess_and_error(

@@ -5,13 +5,14 @@ import numpy as np
 import optuna._gp.acqf as acqf_module
 from optuna.samplers import GPSampler
 
-from src import (
-    batched_acqf_eval_optim_mixed,
-    simplified_optim_mixed,
-    stacking_optim_mixed,
+from . import cbe_optim_mixed, seqopt_optim_mixed
+from . import (
+    dbe_optim_mixed,
 )
 
-SAMPLERMODE = Literal["stacking", "batched_acqf_eval", "original"]
+SAMPLERMODE = Literal[
+    "coupled_batch_evaluation", "decoupled_batch_evaluation", "original"
+]
 
 
 class BatchedSampler(GPSampler):
@@ -26,9 +27,8 @@ class BatchedSampler(GPSampler):
     ) -> np.ndarray:
         assert best_params is None or len(best_params.shape) == 2
         start = time.time()
-        if self.mode == "stacking":
-            # batched_size is set as n_local_search (=10) inside stacking_optim_mixed
-            normalized_params, _acqf_val = stacking_optim_mixed.optimize_acqf_mixed(
+        if self.mode == "coupled_batch_evaluation":
+            normalized_params, _acqf_val = cbe_optim_mixed.optimize_acqf_mixed(
                 acqf,
                 warmstart_normalized_params_array=best_params,
                 n_preliminary_samples=self._n_preliminary_samples,
@@ -39,10 +39,9 @@ class BatchedSampler(GPSampler):
             elapsed = time.time() - start
             self.elapsed_acqf_opt += elapsed
             return normalized_params
-            # raise ValueError("Stacking mode is not implemented.")
-        if self.mode == "batched_acqf_eval":
+        if self.mode == "decoupled_batch_evaluation":
             normalized_params, _acqf_val = (
-                batched_acqf_eval_optim_mixed.optimize_acqf_mixed(
+                dbe_optim_mixed.optimize_acqf_mixed(
                     acqf,
                     warmstart_normalized_params_array=best_params,
                     n_preliminary_samples=self._n_preliminary_samples,
@@ -55,7 +54,7 @@ class BatchedSampler(GPSampler):
             self.elapsed_acqf_opt += elapsed
             return normalized_params
         if self.mode == "original":
-            param, _acqf_val = simplified_optim_mixed.optimize_acqf_mixed(
+            param, _acqf_val = seqopt_optim_mixed.optimize_acqf_mixed(
                 acqf,
                 warmstart_normalized_params_array=best_params,
                 n_preliminary_samples=self._n_preliminary_samples,
