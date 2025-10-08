@@ -15,7 +15,7 @@ from src.benchmark_funcs import (
     rosenbrock_grad,
     rosenbrock_hess,
 )
-from coupling_wrapper import couple_f, couple_grad
+from src.coupling_wrapper import couple_f, couple_grad
 
 # %%
 RNG_SEED = 200
