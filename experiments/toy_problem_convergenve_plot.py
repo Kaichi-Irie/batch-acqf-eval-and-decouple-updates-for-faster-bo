@@ -199,61 +199,62 @@ def plot_with_quartiles(
 
 
 # %%
-
-x_min = get_rosen_minimum(DIMENSION)
-batch_sizes = [1, 2, 5, 10]  # 5, 10]
-memory_sizes = [None]  # , 40]  # L-BFGSのメモリサイズ
-num_seeds = 300  # 各バッチサイズでのランダム初期点の数（シード数）
-random_initial_points = np.random.uniform(
-    LB, UB, size=(math.lcm(*batch_sizes) * num_seeds, DIMENSION)
-)
-# means = []
-# stds = []
-q25s = []
-q50s = []
-q75s = []
-labels = []
-
-for batch_size, memory_size in itertools.product(batch_sizes, memory_sizes):
-    random_initial_points = random_initial_points.reshape(-1, batch_size, DIMENSION)
-    assert random_initial_points.ndim == 3
-
-    random_seed_histories = []
-    for xs0 in random_initial_points:
-        res, hist = run_cbe_with_history(xs0, METHOD, LB, UB, memory_size=memory_size)
-        print(f"Optimization result for B={batch_size}: {res}")
-        hist = calculate_average_per_batch(hist, batch_size)
-        random_seed_histories.append(hist)
-
-    q25, q50, q75 = stats_from_histories(random_seed_histories)
-    q25s.append(q25)
-    q50s.append(q50)
-    q75s.append(q75)
-    label = (
-        f"B={batch_size}" if memory_size is None else f"B={batch_size}, M={memory_size}"
+if __name__ == "__main__":
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    x_min = get_rosen_minimum(DIMENSION)
+    batch_sizes = [1, 2, 5, 10]  # 5, 10]
+    memory_sizes = [None]  # , 40]  # L-BFGSのメモリサイズ
+    num_seeds = 300  # 各バッチサイズでのランダム初期点の数（シード数）
+    random_initial_points = np.random.uniform(
+        LB, UB, size=(math.lcm(*batch_sizes) * num_seeds, DIMENSION)
     )
-    labels.append(label)
+    # means = []
+    # stds = []
+    q25s = []
+    q50s = []
+    q75s = []
+    labels = []
 
+    for batch_size, memory_size in itertools.product(batch_sizes, memory_sizes):
+        random_initial_points = random_initial_points.reshape(-1, batch_size, DIMENSION)
+        assert random_initial_points.ndim == 3
 
-# %%
-# plot_mean_and_std(
-#     means,
-#     stds,
-#     labels,
-#     title,
-#     ylabel="Average Objective per Problem (log scale)",
-#     outpath=output_filepath,
-# )
+        random_seed_histories = []
+        for xs0 in random_initial_points:
+            res, hist = run_cbe_with_history(
+                xs0, METHOD, LB, UB, memory_size=memory_size
+            )
+            print(f"Optimization result for B={batch_size}: {res}")
+            hist = calculate_average_per_batch(hist, batch_size)
+            random_seed_histories.append(hist)
 
+        q25, q50, q75 = stats_from_histories(random_seed_histories)
+        q25s.append(q25)
+        q50s.append(q50)
+        q75s.append(q75)
+        label = (
+            f"B={batch_size}"
+            if memory_size is None
+            else f"B={batch_size}, M={memory_size}"
+        )
+        labels.append(label)
 
-plot_with_quartiles(
-    q25s,
-    q50s,
-    q75s,
-    labels,
-    f"Convergence Comparison (median ± IQR) {OBJ_NAME}, {METHOD}, D={DIMENSION}, BD={LB}~{UB}",
-    ylabel="Average Objective per Problem (log scale)",
-    outpath=f"convergence_plot/convergence_{OBJ_NAME}_{METHOD}_D{DIMENSION}_UB{UB}_LB{LB}_M{10}_quartiles.pdf",
-)
+    # %%
+    # plot_mean_and_std(
+    #     means,
+    #     stds,
+    #     labels,
+    #     title,
+    #     ylabel="Average Objective per Problem (log scale)",
+    #     outpath=output_filepath,
+    # )
 
-# %%
+    plot_with_quartiles(
+        q25s,
+        q50s,
+        q75s,
+        labels,
+        f"Convergence Comparison (median ± IQR) {OBJ_NAME}, {METHOD}, D={DIMENSION}, BD={LB}~{UB}",
+        ylabel="Average Objective per Problem (log scale)",
+        outpath=f"convergence_plot/convergence_{OBJ_NAME}_{METHOD}_D{DIMENSION}_UB{UB}_LB{LB}_M{10}_quartiles.pdf",
+    )

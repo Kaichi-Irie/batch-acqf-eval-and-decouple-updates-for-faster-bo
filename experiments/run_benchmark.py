@@ -52,7 +52,7 @@ def execute_benchmark(
     print(study.best_trial.params, study.best_trial.value)
     elapsed = (
         study.trials[-1].datetime_complete - study.trials[0].datetime_start
-    ).total_seconds()
+    ).total_seconds()  # type: ignore
     print(f"{mode} took {elapsed:.2f} seconds. ")
 
     summary = {
@@ -98,27 +98,26 @@ def execute_benchmark(
 
 
 # %%
-
-seeds = range(1)  # [42, 43, 44]  # [42, 43, 44]
-n_trials = 30  # 回せるだけ回す~500
-# https://numbbo.github.io/coco/testsuites/bbob
-function_ids = [6]  # , 15]  # [1,6,10,15,20]
-dimensions = [10]  # , 20, 40]  # [5,10,20]
-modes: list[SAMPLERMODE] = [
-    "coupled_batch_evaluation",  # "CBE",
-    # "decoupled_batch_evaluation",  # "DBE",
-    # "original",
-]
-for function_id, dimension, seed, mode in product(
-    function_ids, dimensions, seeds, modes
-):
-    execute_benchmark(
-        function_id=function_id,
-        dimension=dimension,
-        mode=mode,
-        n_trials=n_trials,
-        seed=seed,
-        output_dir="results",
-    )
-
-# %%
+if __name__ == "__main__":
+    seeds = range(3)  # [42, 43, 44]  # [42, 43, 44]
+    n_trials = 100  # 回せるだけ回す~500
+    # https://numbbo.github.io/coco/testsuites/bbob
+    function_ids = [6]  # , 15]  # [1,6,10,15,20]
+    dimensions = [10]  # , 20, 40]  # [5,10,20]
+    modes: list[SAMPLERMODE] = [
+        "original",
+        "coupled_batch_evaluation",  # "CBE",
+        "decoupled_batch_evaluation",  # "DBE",
+    ]
+    for function_id, dimension, seed, mode in product(
+        function_ids, dimensions, seeds, modes
+    ):
+        execute_benchmark(
+            function_id=function_id,
+            dimension=dimension,
+            mode=mode,
+            n_trials=n_trials,
+            seed=seed,
+            summary_file="summary_tmp.jsonl",
+            output_dir="results",
+        )

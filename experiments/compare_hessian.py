@@ -133,6 +133,7 @@ def compare_hess_and_error(
         plt.savefig(os.path.join(OUTPUT_DIR, filename))
     plt.show()
 
+
 def relative_error_fro(hess_true: np.ndarray, hess_approx: np.ndarray) -> float:
     """||H - Ĥ||_F / ||H||_F を返す。真行列が全ゼロの場合は np.nan。"""
     assert hess_true.ndim == 2 and hess_approx.ndim == 2
@@ -230,66 +231,66 @@ def plot_hessian_triplet(
 
 
 # %%
-xs0 = np.random.uniform(LB, UB, size=(BATCH_SIZE, DIMENSION))
-x_min = get_rosen_minimum(DIMENSION)
+if __name__ == "__main__":
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    xs0 = np.random.uniform(LB, UB, size=(BATCH_SIZE, DIMENSION))
+    x_min = get_rosen_minimum(DIMENSION)
 
-# --- Coupled Batched Evaluation ---
-res_cbe = run_coupled_batch_evaluation(xs0, METHOD, LB, UB, BATCH_SIZE, DIMENSION)
-assert np.allclose(res_cbe.x, np.tile(x_min, BATCH_SIZE), atol=1e-2)
+    # --- Coupled Batched Evaluation ---
+    res_cbe = run_coupled_batch_evaluation(xs0, METHOD, LB, UB, BATCH_SIZE, DIMENSION)
+    assert np.allclose(res_cbe.x, np.tile(x_min, BATCH_SIZE), atol=1e-2)
 
-_, Hinv_cbe = hess_and_hess_inv_from_result(res_cbe, METHOD)
+    _, Hinv_cbe = hess_and_hess_inv_from_result(res_cbe, METHOD)
 
-# --- Sequential ---
-results_seq = run_sequential_optimization(xs0, METHOD, LB, UB)
-# for r in results_seq:
-#     assert np.allclose(r.x, x_min, atol=1e-5)
-_, Hinv_seq = make_block_hess_and_hess_inv(results_seq, METHOD)
+    # --- Sequential ---
+    results_seq = run_sequential_optimization(xs0, METHOD, LB, UB)
+    # for r in results_seq:
+    #     assert np.allclose(r.x, x_min, atol=1e-5)
+    _, Hinv_seq = make_block_hess_and_hess_inv(results_seq, METHOD)
 
-# --- 真のヘッセ（逐次の到達点で評価） ---
-pts_seq = np.vstack([r.x for r in results_seq])
-Hinv_true_seq = true_hess_inv_block(pts_seq)
+    # --- 真のヘッセ（逐次の到達点で評価） ---
+    pts_seq = np.vstack([r.x for r in results_seq])
+    Hinv_true_seq = true_hess_inv_block(pts_seq)
 
-# --- 誤差（Frobenius） ---
-print("\n--- Frobenius Norm Errors (Inverse Hessian ) ---")
-relative_err_seq_inv = np.linalg.norm(
-    Hinv_seq - Hinv_true_seq, ord="fro"
-) / np.linalg.norm(Hinv_true_seq, ord="fro")
-relative_err_cbe_inv = np.linalg.norm(
-    Hinv_cbe - Hinv_true_seq, ord="fro"
-) / np.linalg.norm(Hinv_true_seq, ord="fro")
-print(f"Sequential Approx Inv Error: {relative_err_seq_inv:.2e}")
-print(f"CBE Approx Inv Error:  {relative_err_cbe_inv:.2e}")
-# %%
-# Inverse Hessian ヒートマップ
-plot_hessian_triplet(
-    Hinv_true_seq,
-    Hinv_seq,
-    Hinv_cbe,
-    titles=("(a) True", "(b) Sequential Opt. approx.", "(c) C-BE approx."),
-    approx_names=("Seq", "CBE"),
-    out_pdf_path=os.path.join(
-        OUTPUT_DIR, f"hessian_inv_comparison_triplet_{SUFFIX}.pdf"
-    ),
-)
-# --- 比較図（真値 vs 近似） ---
-err_max_inv = max(
-    np.abs(Hinv_true_seq - Hinv_seq).max(), np.abs(Hinv_true_seq - Hinv_cbe).max()
-)
-compare_hess_and_error(
-    Hinv_true_seq,
-    Hinv_cbe,
-    f"CBE Approximation Inv ({OBJ_NAME}, {METHOD}, B={BATCH_SIZE}, D={DIMENSION})",
-    error_max=err_max_inv,
-    filename=f"hessian_inv_comparison_CBE_{SUFFIX}.pdf",
-    is_inverse=True,
-)
-compare_hess_and_error(
-    Hinv_true_seq,
-    Hinv_seq,
-    f"Sequential Approximation Inv ({OBJ_NAME}, {METHOD}, B={BATCH_SIZE}, D={DIMENSION})",
-    error_max=err_max_inv,
-    filename=f"hessian_inv_comparison_sequential_{SUFFIX}.pdf",
-    is_inverse=True,
-)
-
-# %%
+    # --- 誤差（Frobenius） ---
+    print("\n--- Frobenius Norm Errors (Inverse Hessian ) ---")
+    relative_err_seq_inv = np.linalg.norm(
+        Hinv_seq - Hinv_true_seq, ord="fro"
+    ) / np.linalg.norm(Hinv_true_seq, ord="fro")
+    relative_err_cbe_inv = np.linalg.norm(
+        Hinv_cbe - Hinv_true_seq, ord="fro"
+    ) / np.linalg.norm(Hinv_true_seq, ord="fro")
+    print(f"Sequential Approx Inv Error: {relative_err_seq_inv:.2e}")
+    print(f"CBE Approx Inv Error:  {relative_err_cbe_inv:.2e}")
+    # %%
+    # Inverse Hessian ヒートマップ
+    plot_hessian_triplet(
+        Hinv_true_seq,
+        Hinv_seq,
+        Hinv_cbe,
+        titles=("(a) True", "(b) Sequential Opt. approx.", "(c) C-BE approx."),
+        approx_names=("Seq", "CBE"),
+        out_pdf_path=os.path.join(
+            OUTPUT_DIR, f"hessian_inv_comparison_triplet_{SUFFIX}.pdf"
+        ),
+    )
+    # --- 比較図（真値 vs 近似） ---
+    err_max_inv = max(
+        np.abs(Hinv_true_seq - Hinv_seq).max(), np.abs(Hinv_true_seq - Hinv_cbe).max()
+    )
+    compare_hess_and_error(
+        Hinv_true_seq,
+        Hinv_cbe,
+        f"CBE Approximation Inv ({OBJ_NAME}, {METHOD}, B={BATCH_SIZE}, D={DIMENSION})",
+        error_max=err_max_inv,
+        filename=f"hessian_inv_comparison_CBE_{SUFFIX}.pdf",
+        is_inverse=True,
+    )
+    compare_hess_and_error(
+        Hinv_true_seq,
+        Hinv_seq,
+        f"Sequential Approximation Inv ({OBJ_NAME}, {METHOD}, B={BATCH_SIZE}, D={DIMENSION})",
+        error_max=err_max_inv,
+        filename=f"hessian_inv_comparison_sequential_{SUFFIX}.pdf",
+        is_inverse=True,
+    )
