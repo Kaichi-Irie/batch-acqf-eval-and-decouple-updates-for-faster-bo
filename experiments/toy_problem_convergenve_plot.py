@@ -17,7 +17,7 @@ from src.benchmark_funcs import (
     rosenbrock_func,
     rosenbrock_grad,
 )
-from coupling_wrapper import couple_f, couple_grad
+from src.coupling_wrapper import couple_f, couple_grad
 
 SEED = 42
 DIMENSION = 5
@@ -220,9 +220,7 @@ for batch_size, memory_size in itertools.product(batch_sizes, memory_sizes):
 
     random_seed_histories = []
     for xs0 in random_initial_points:
-        res, hist = run_cbe_with_history(
-            xs0, METHOD, LB, UB, memory_size=memory_size
-        )
+        res, hist = run_cbe_with_history(xs0, METHOD, LB, UB, memory_size=memory_size)
         print(f"Optimization result for B={batch_size}: {res}")
         hist = calculate_average_per_batch(hist, batch_size)
         random_seed_histories.append(hist)
@@ -257,3 +255,5 @@ plot_with_quartiles(
     ylabel="Average Objective per Problem (log scale)",
     outpath=f"convergence_plot/convergence_{OBJ_NAME}_{METHOD}_D{DIMENSION}_UB{UB}_LB{LB}_M{10}_quartiles.pdf",
 )
+
+# %%
