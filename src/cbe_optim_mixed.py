@@ -9,8 +9,6 @@ from optuna._gp.scipy_blas_thread_patch import (
 )
 from optuna.logging import get_logger
 
-from src import iterinfo_global_variables as cfg
-
 _logger = get_logger(__name__)
 
 
@@ -21,7 +19,7 @@ def _gradient_ascent(
     continuous_indices: np.ndarray,
     lengthscales: np.ndarray,  # (D,)
     tol: float,
-) -> tuple[np.ndarray, float, bool]:
+) -> tuple[np.ndarray, float, bool, int]:
     """
     This function optimizes the acquisition function using preconditioning.
     Preconditioning equalizes the variances caused by each parameter and
@@ -38,7 +36,7 @@ def _gradient_ascent(
     As the domain of `x` is [0, 1], that of `z` becomes [0, 1/l].
     """
     if len(continuous_indices) == 0:
-        return initial_params, initial_fval, False
+        return initial_params, initial_fval, False, 0
     batch_size, dimension = initial_params.shape
     if len(continuous_indices) != dimension:
         raise ValueError("Incompatible continuous indices.")
@@ -100,18 +98,16 @@ def _gradient_ascent(
         )
         # reshape from (B*D,) to (B,D)
         scaled_cont_x_opt = scaled_cont_x_opt.reshape(batch_size, dimension)
-        cfg.MAX_NITS.append(info["nit"])
-        cfg.TOTAL_NITS.append(info["nit"])
-        cfg.AVERAGE_NITS.append(info["nit"])
+        nit = info["nit"]
 
     if -neg_fval_opt > initial_fval and info["nit"] > 0:  # Improved.
         # `nit` is the number of iterations.
         normalized_params[:, continuous_indices] = (
             scaled_cont_x_opt * lengthscales
         )  # (B,D)
-        return normalized_params, -neg_fval_opt, True
+        return normalized_params, -neg_fval_opt, True, nit
 
-    return initial_params, initial_fval, False  # No improvement.
+    return initial_params, initial_fval, False, nit  # No improvement.
 
 
 def local_search_mixed_coupled(
@@ -119,7 +115,7 @@ def local_search_mixed_coupled(
     initial_normalized_params_list: np.ndarray,  # (B,D)
     *,
     tol: float = 1e-4,
-) -> tuple[np.ndarray, float]:
+) -> tuple[np.ndarray, float, int]:
     continuous_indices = acqf.search_space.continuous_indices
     batch_size, dimension = initial_normalized_params_list.shape
     lengthscales = acqf.length_scales  # (D,)
@@ -130,7 +126,7 @@ def local_search_mixed_coupled(
         [float(acqf.eval_acqf_no_grad(p)) for p in best_normalized_params_list]
     )
 
-    (best_normalized_params_list, best_fval, _) = _gradient_ascent(
+    (best_normalized_params_list, best_fval, _, nit) = _gradient_ascent(
         acqf,
         best_normalized_params_list,
         best_fval,
@@ -138,7 +134,7 @@ def local_search_mixed_coupled(
         lengthscales,
         tol,
     )
-    return best_normalized_params_list, best_fval
+    return best_normalized_params_list, best_fval, nit
 
 
 def optimize_acqf_mixed(
@@ -149,7 +145,7 @@ def optimize_acqf_mixed(
     n_local_search: int = 10,
     tol: float = 1e-4,
     rng: np.random.RandomState | None = None,
-) -> tuple[np.ndarray, float]:
+) -> tuple[np.ndarray, float, dict[str, float]]:
     rng = rng or np.random.RandomState()
 
     if warmstart_normalized_params_array is None:
@@ -201,11 +197,21 @@ def optimize_acqf_mixed(
     )
     assert x_warmstarts.shape == (batch_size, dimension)
     # xs: (B,D)
-    xs, f_sum = local_search_mixed_coupled(acqf, x_warmstarts, tol=tol)
+    xs, f_sum, nit = local_search_mixed_coupled(acqf, x_warmstarts, tol=tol)
     assert xs.shape == (batch_size, dimension)
     for x in xs:
         f = float(acqf.eval_acqf_no_grad(x))
         if f > best_f:
             best_x = x
             best_f = f
-    return best_x, best_f
+
+    nit_stats = {
+        "min": nit,
+        "q1": nit,
+        "q2": nit,
+        "q3": nit,
+        "max": nit,
+        "mean": nit,
+    }
+
+    return best_x, best_f, nit_stats # type: ignore

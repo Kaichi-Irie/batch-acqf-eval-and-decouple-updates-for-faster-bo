@@ -8,11 +8,7 @@ from optuna._gp.scipy_blas_thread_patch import (
 )
 from optuna.logging import get_logger
 
-from src import iterinfo_global_variables as cfg
-
 _logger = get_logger(__name__)
-
-TOTAL_NIT = 0  # For benchmarking
 
 
 def _gradient_ascent(
@@ -22,7 +18,7 @@ def _gradient_ascent(
     continuous_indices: np.ndarray,
     lengthscales: np.ndarray,
     tol: float,
-) -> tuple[np.ndarray, float, bool]:
+) -> tuple[np.ndarray, float, bool, int]:
     """
     This function optimizes the acquisition function using preconditioning.
     Preconditioning equalizes the variances caused by each parameter and
@@ -39,7 +35,7 @@ def _gradient_ascent(
     As the domain of `x` is [0, 1], that of `z` becomes [0, 1/l].
     """
     if len(continuous_indices) == 0:
-        return initial_params, initial_fval, False
+        return initial_params, initial_fval, False, 0
     normalized_params = initial_params.copy()
 
     def negative_acqf_with_grad(scaled_x: np.ndarray) -> tuple[float, np.ndarray]:
@@ -58,15 +54,13 @@ def _gradient_ascent(
             pgtol=math.sqrt(tol),
         )
 
-    global TOTAL_NIT
-    TOTAL_NIT += info["nit"]
-
-    if -neg_fval_opt > initial_fval and info["nit"] > 0:  # Improved.
+    nit = info["nit"]
+    if -neg_fval_opt > initial_fval and nit > 0:  # Improved.
         # `nit` is the number of iterations.
         normalized_params[continuous_indices] = scaled_cont_x_opt * lengthscales
-        return normalized_params, -neg_fval_opt, True
+        return normalized_params, -neg_fval_opt, True, nit
 
-    return initial_params, initial_fval, False  # No improvement.
+    return initial_params, initial_fval, False, nit  # No improvement.
 
 
 def local_search_mixed(
@@ -74,7 +68,7 @@ def local_search_mixed(
     initial_normalized_params: np.ndarray,
     *,
     tol: float = 1e-4,
-) -> tuple[np.ndarray, float]:
+) -> tuple[np.ndarray, float, int]:
     continuous_indices = acqf.search_space.continuous_indices
     if len(continuous_indices) != len(initial_normalized_params):
         raise ValueError("Only continuous optimization is supported.")
@@ -82,7 +76,7 @@ def local_search_mixed(
     best_normalized_params = initial_normalized_params.copy()
     best_fval = float(acqf.eval_acqf_no_grad(best_normalized_params))
 
-    (best_normalized_params, best_fval, _) = _gradient_ascent(
+    (best_normalized_params, best_fval, _, nit) = _gradient_ascent(
         acqf,
         best_normalized_params,
         best_fval,
@@ -90,7 +84,7 @@ def local_search_mixed(
         lengthscales,
         tol,
     )
-    return best_normalized_params, best_fval
+    return best_normalized_params, best_fval, nit
 
 
 def optimize_acqf_mixed(
@@ -101,7 +95,7 @@ def optimize_acqf_mixed(
     n_local_search: int = 10,
     tol: float = 1e-4,
     rng: np.random.RandomState | None = None,
-) -> tuple[np.ndarray, float]:
+) -> tuple[np.ndarray, float, dict[str, float]]:
     rng = rng or np.random.RandomState()
 
     if warmstart_normalized_params_array is None:
@@ -143,16 +137,22 @@ def optimize_acqf_mixed(
 
     best_x = sampled_xs[max_i, :]
     best_f = float(f_vals[max_i])
-    global TOTAL_NIT
-    TOTAL_NIT = 0
+    nits: list[int] = []
     for x_warmstart in np.vstack(
         [sampled_xs[chosen_idxs, :], warmstart_normalized_params_array]
     ):
-        x, f = local_search_mixed(acqf, x_warmstart, tol=tol)
+        x, f, nit = local_search_mixed(acqf, x_warmstart, tol=tol)
+        nits.append(nit)
         if f > best_f:
             best_x = x
             best_f = f
 
-    cfg.TOTAL_NITS.append(TOTAL_NIT)
-    cfg.AVERAGE_NITS.append(TOTAL_NIT / n_local_search)
-    return best_x, best_f
+    nit_stats = {
+        "min": float(np.min(nits)),
+        "q1": float(np.percentile(nits, 25)),
+        "q2": float(np.median(nits)),
+        "q3": float(np.percentile(nits, 75)),
+        "max": float(np.max(nits)),
+        "mean": float(np.mean(nits)),
+    }
+    return best_x, best_f, nit_stats

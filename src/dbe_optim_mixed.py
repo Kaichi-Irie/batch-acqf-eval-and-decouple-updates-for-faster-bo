@@ -9,7 +9,6 @@ from optuna._gp.scipy_blas_thread_patch import (
 from optuna.logging import get_logger
 
 from src import batched_lbfgsb as b_opt
-from src import iterinfo_global_variables as cfg
 
 _logger = get_logger(__name__)
 
@@ -21,7 +20,7 @@ def _gradient_ascent_batched(
     continuous_indices: np.ndarray,
     lengthscales: np.ndarray,
     tol: float,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     This function optimizes the acquisition function using preconditioning.
     Preconditioning equalizes the variances caused by each parameter and
@@ -42,6 +41,7 @@ def _gradient_ascent_batched(
             initial_params_batched,
             initial_fvals,
             np.zeros(len(initial_fvals), dtype=bool),
+            np.zeros(len(initial_fvals), dtype=int),
         )
     normalized_params = initial_params_batched.copy()
 
@@ -84,18 +84,11 @@ def _gradient_ascent_batched(
     fvals_opt = -neg_fvals_opt
     is_updated_batch = (fvals_opt > initial_fvals) & (n_iterations > 0)
 
-    cfg.TOTAL_NITS.append(int(n_iterations.sum()))
-    cfg.AVERAGE_NITS.append(
-        float(n_iterations[n_iterations > 0].mean())
-        if np.any(n_iterations > 0)
-        else 0.0
-    )
-    cfg.MAX_NITS.append(int(n_iterations.max()) if len(n_iterations) > 0 else 0)
-
     return (
         np.where(is_updated_batch[:, None], normalized_params, initial_params_batched),
         np.where(is_updated_batch, fvals_opt, initial_fvals),
         is_updated_batch,
+        n_iterations,
     )
 
 
@@ -105,14 +98,14 @@ def local_search_mixed_batched(
     *,
     tol: float = 1e-4,
     max_iter: int = 100,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     lengthscales = acqf.length_scales[
         (cont_inds := acqf.search_space.continuous_indices)
     ]
     assert xs0.ndim == 2
     assert len(cont_inds) == xs0.shape[1]
     best_fvals = acqf.eval_acqf_no_grad((best_xs := xs0.copy()))
-    best_xs, best_fvals, _ = _gradient_ascent_batched(
+    best_xs, best_fvals, _, n_iterations = _gradient_ascent_batched(
         acqf,
         best_xs,
         best_fvals,
@@ -120,7 +113,7 @@ def local_search_mixed_batched(
         lengthscales,
         tol,
     )
-    return best_xs, best_fvals
+    return best_xs, best_fvals, n_iterations
 
 
 def optimize_acqf_mixed(
@@ -131,7 +124,7 @@ def optimize_acqf_mixed(
     n_local_search: int = 10,
     tol: float = 1e-4,
     rng: np.random.RandomState | None = None,
-) -> tuple[np.ndarray, float]:
+) -> tuple[np.ndarray, float, dict[str, float]]:
     rng = rng or np.random.RandomState()
 
     if warmstart_normalized_params_array is None:
@@ -173,6 +166,15 @@ def optimize_acqf_mixed(
     x_warmstarts = np.vstack(
         [sampled_xs[chosen_idxs, :], warmstart_normalized_params_array]
     )
-    best_xs, best_fvals = local_search_mixed_batched(acqf, x_warmstarts, tol=tol)
+    best_xs, best_fvals, nits = local_search_mixed_batched(acqf, x_warmstarts, tol=tol)
     best_idx = np.argmax(best_fvals).item()
-    return best_xs[best_idx], best_fvals[best_idx]
+
+    nit_stats = {
+        "min": float(np.min(nits)),
+        "q1": float(np.percentile(nits, 25)),
+        "q2": float(np.median(nits)),
+        "q3": float(np.percentile(nits, 75)),
+        "max": float(np.max(nits)),
+        "mean": float(np.mean(nits)),
+    }
+    return best_xs[best_idx], best_fvals[best_idx], nit_stats
