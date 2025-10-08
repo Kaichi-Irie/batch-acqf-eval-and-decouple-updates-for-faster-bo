@@ -3,7 +3,7 @@
 import pandas as pd
 
 # %%
-with open("results/summary.jsonl", "r") as f:
+with open("results/summary_tmp.jsonl", "r") as f:
     df = pd.read_json(f, lines=True)
 
 
@@ -24,11 +24,11 @@ summary = (
         acqf_opt_time_median=("elapsed_acqf_opt", "median"),
         acqf_opt_time_q1=("elapsed_acqf_opt", lambda x: x.quantile(0.25)),
         acqf_opt_time_q3=("elapsed_acqf_opt", lambda x: x.quantile(0.75)),
-        avg_nits_mean=("average_nits", "mean"),
-        avg_nits_std=("average_nits", "std"),
-        avg_nits_median=("average_nits", "median"),
-        avg_nits_q1=("average_nits", lambda x: x.quantile(0.25)),
-        avg_nits_q3=("average_nits", lambda x: x.quantile(0.75)),
+        avg_nits_mean=("n_iter_mean", "mean"),
+        avg_nits_std=("n_iter_mean", "std"),
+        avg_nits_median=("n_iter_median", "median"),
+        avg_nits_q1=("n_iter_median", lambda x: x.quantile(0.25)),
+        avg_nits_q3=("n_iter_median", lambda x: x.quantile(0.75)),
     )
     .reset_index()
 )
