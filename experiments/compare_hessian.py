@@ -25,17 +25,18 @@ LB, UB = 0.0, 3.0
 METHOD = "BFGS"  # "BFGS"
 OBJ_NAME = "Rosenbrock"
 OUTPUT_DIR = "hessian_comparison"
+SUFFIX = f"{OBJ_NAME}_{METHOD}_B{BATCH_SIZE}_D{DIMENSION}_seed{RNG_SEED}"
 np.random.seed(RNG_SEED)
 
 
 def run_coupled_batch_evaluation(
-    x0: np.ndarray, method: str, lb: float, ub: float, batch_size: int, dim: int
+    xs0: np.ndarray, method: str, lb: float, ub: float, batch_size: int, dim: int
 ):
     f = couple_f(rosenbrock_func, batch_size, dim)
     g = couple_grad(rosenbrock_grad, batch_size, dim)
     res = opt.minimize(
         f,
-        x0.flatten(),
+        xs0.flatten(),
         method=method,
         jac=g,
         bounds=[(lb, ub)] * (batch_size * dim) if method == "L-BFGS-B" else None,
@@ -132,127 +133,144 @@ def compare_hess_and_error(
         plt.savefig(os.path.join(OUTPUT_DIR, filename))
     plt.show()
 
+def relative_error_fro(hess_true: np.ndarray, hess_approx: np.ndarray) -> float:
+    """||H - Ĥ||_F / ||H||_F を返す。真行列が全ゼロの場合は np.nan。"""
+    assert hess_true.ndim == 2 and hess_approx.ndim == 2
+    assert hess_true.shape == hess_approx.shape
+    denom = np.linalg.norm(hess_true, ord="fro")
+    if denom == 0:
+        return np.nan
+    return float(np.linalg.norm(hess_true - hess_approx, ord="fro") / denom)
 
-def compare_hessians(
-    hessians: list[np.ndarray],
-    labels: list[str],
-    title: str,
-    true_hess: np.ndarray | None = None,  # used for frobenius norm and color scale
-    filename: str | None = None,
-) -> None:
-    n = len(hessians)
-    assert n == len(labels)
 
-    fig, axes = plt.subplots(1, n, figsize=(5 * n, 5))
-    if true_hess is not None:
-        vmin, vmax = true_hess.min(), true_hess.max()
-    else:
-        vmin = min(H.min() for H in hessians)
-        vmax = max(H.max() for H in hessians)
+def plot_hessian_triplet(
+    H_true: np.ndarray,
+    H_approx_a: np.ndarray,
+    H_approx_b: np.ndarray,
+    titles=("True", "Approx A", "Approx B"),
+    approx_names=("A", "B"),
+    cmap="viridis",
+    fig_width_in=7.0,
+    fig_height_in=2.4,
+    out_pdf_path="hessian_comparison.pdf",
+):
+    """
+    3つの行列（真・近似2種）のヒートマップを横並びで比較し、右端に共通カラーバーを出力する。
+    - 相対誤差（Frobeniusノルム比）を近似のサブタイトルに表示。
+    - PDF保存時に余白を最小化（bbox_inches='tight', pad_inches=0）。
+    - カラースケールは3枚で共通、ゼロ中心の TwoSlopeNorm を採用。
+    """
+    # --- 共通スケール（ゼロ中心、左右対称が見やすい） ---
+    # data_all = np.stack([H_true, H_approx_a, H_approx_b], axis=0)
+    v_abs = np.nanmax(np.abs(H_true)) * 1.2
+    if not np.isfinite(v_abs) or v_abs == 0:
+        v_abs = 1.0  # 退避（全ゼロやNaNのみ対策）
+    # norm = TwoSlopeNorm(vmin=-v_abs, vcenter=0.0, vmax=v_abs)
+    vmin, vmax = H_true.min(), H_true.max()
     vmax += (vmax - vmin) * 0.2
     vmin -= (vmax - vmin) * 0.2
+    # --- 相対誤差（Frobenius） ---
+    rel_a = relative_error_fro(H_true, H_approx_a)
+    rel_b = relative_error_fro(H_true, H_approx_b)
 
-    for i, (H, label) in enumerate(zip(hessians, labels)):
-        im = axes[i].imshow(H, cmap="viridis", vmin=vmin, vmax=vmax)
-        kappa = np.linalg.cond(H)
-        if true_hess is not None:
-            fro_err = np.linalg.norm(H - true_hess, ord="fro")
-            axes[i].set_title(f"{label}\n($\\kappa$={kappa:.2e}, Fro={fro_err:.2e})")
-        else:
-            axes[i].set_title(f"{label}\n($\\kappa$={kappa:.2e})")
-        axes[i].set_xlabel("Dimensions")
-        axes[i].set_ylabel("Dimensions")
-        fig.colorbar(im, ax=axes[i], shrink=0.6)
+    # --- 図の作成（余白を極小に） ---
+    plt.rcParams.update(
+        {
+            "savefig.bbox": "tight",
+            "savefig.pad_inches": 0.0,
+            "pdf.fonttype": 42,  # ベクトルフォント埋め込み（Illustrator等でも文字化けしにくい）
+            "ps.fonttype": 42,
+        }
+    )
+    fig, axes = plt.subplots(
+        1,
+        3,
+        figsize=(fig_width_in, fig_height_in),
+        constrained_layout=True,  # 余白の自動調整
+    )
 
-    plt.suptitle(title, fontsize=16)
-    plt.tight_layout()
-    if filename:
-        plt.savefig(os.path.join(OUTPUT_DIR, filename))
-    plt.show()
+    mats = [H_true, H_approx_a, H_approx_b]
+    # タイトル行。近似はサブタイトルに相対誤差を表示
+    panel_titles = [
+        titles[0],
+        f"{titles[1]}\n(rel. error: {rel_a:.2e})"
+        if np.isfinite(rel_a)
+        else f"{titles[1]}\n(rel. error: n/a)",
+        f"{titles[2]}\n(rel. error: {rel_b:.2e})"
+        if np.isfinite(rel_b)
+        else f"{titles[2]}\n(rel. error: n/a)",
+    ]
+    # panel_titles = titles
+
+    images = []
+    for ax, M, t in zip(axes, mats, panel_titles):
+        im = ax.imshow(
+            M, cmap=cmap, interpolation="nearest", aspect="equal", vmin=vmin, vmax=vmax
+        )
+        images.append(im)
+        ax.set_title(t, fontsize=12, pad=4)
+        # 研究レイアウト向けにラベル・目盛りは基本オフ（紙幅節約）
+        ax.set_xticks([])
+        ax.set_yticks([])
+        # 外枠を薄く
+        for spine in ax.spines.values():
+            spine.set_linewidth(0.6)
+
+    # --- 右端に共通カラーバー ---
+    # fig.colorbar に複数 Axes を渡すと位置調整しやすい
+    cbar = fig.colorbar(
+        images[0], ax=axes, location="right", shrink=0.95, pad=0.02, fraction=0.04
+    )
+    cbar.ax.tick_params(labelsize=8)
+
+    # --- 保存（余白極小） ---
+    fig.savefig(out_pdf_path, dpi=300, bbox_inches="tight", pad_inches=0.03)
+    plt.close(fig)
+    return out_pdf_path
 
 
 # %%
-
 xs0 = np.random.uniform(LB, UB, size=(BATCH_SIZE, DIMENSION))
-
-# 真の最適解（検算用）
 x_min = get_rosen_minimum(DIMENSION)
 
 # --- Coupled Batched Evaluation ---
 res_cbe = run_coupled_batch_evaluation(xs0, METHOD, LB, UB, BATCH_SIZE, DIMENSION)
-# assert np.allclose(res_stack.x, np.tile(x_min, BATCH_SIZE), atol=1e-2)
+assert np.allclose(res_cbe.x, np.tile(x_min, BATCH_SIZE), atol=1e-2)
 
-H_cbe, Hinv_cbe = hess_and_hess_inv_from_result(res_cbe, METHOD)
+_, Hinv_cbe = hess_and_hess_inv_from_result(res_cbe, METHOD)
 
 # --- Sequential ---
 results_seq = run_sequential_optimization(xs0, METHOD, LB, UB)
 # for r in results_seq:
 #     assert np.allclose(r.x, x_min, atol=1e-5)
-H_seq, Hinv_seq = make_block_hess_and_hess_inv(results_seq, METHOD)
+_, Hinv_seq = make_block_hess_and_hess_inv(results_seq, METHOD)
 
 # --- 真のヘッセ（逐次の到達点で評価） ---
 pts_seq = np.vstack([r.x for r in results_seq])
-H_true_seq = true_hessian_block(pts_seq)
 Hinv_true_seq = true_hess_inv_block(pts_seq)
 
-# --- 条件数比較 ---
-print("--- Condition Numbers (Hessian and Inverse are the same) ---")
-print(f"True Hessian:      {np.linalg.cond(H_true_seq):.2e}")
-print(f"Sequential Approx: {np.linalg.cond(H_seq):.2e}")
-print(f"CBE Approx:    {np.linalg.cond(H_cbe):.2e}")
-
 # --- 誤差（Frobenius） ---
-print("\n--- Frobenius Norm Errors (Hessian) ---")
-err_seq = np.linalg.norm(H_seq - H_true_seq, ord="fro")
-err_cbe = np.linalg.norm(H_cbe - H_true_seq, ord="fro")
-print(f"Sequential Approx Error: {err_seq:.2e}")
-print(f"CBE   Approx Error:  {err_cbe:.2e}")
-
-print("\n--- Frobenius Norm Errors (Hessian Inverse) ---")
-err_seq_inv = np.linalg.norm(Hinv_seq - Hinv_true_seq, ord="fro")
-err_cbe_inv = np.linalg.norm(Hinv_cbe - Hinv_true_seq, ord="fro")
-print(f"Sequential Approx Inv Error: {err_seq_inv:.2e}")
-print(f"CBE Approx Inv Error:  {err_cbe_inv:.2e}")
+print("\n--- Frobenius Norm Errors (Inverse Hessian ) ---")
+relative_err_seq_inv = np.linalg.norm(
+    Hinv_seq - Hinv_true_seq, ord="fro"
+) / np.linalg.norm(Hinv_true_seq, ord="fro")
+relative_err_cbe_inv = np.linalg.norm(
+    Hinv_cbe - Hinv_true_seq, ord="fro"
+) / np.linalg.norm(Hinv_true_seq, ord="fro")
+print(f"Sequential Approx Inv Error: {relative_err_seq_inv:.2e}")
+print(f"CBE Approx Inv Error:  {relative_err_cbe_inv:.2e}")
 # %%
-
-# --- ヒートマップ（真値・逐次近似・スタック近似） ---
-# Hessian
-compare_hessians(
-    [H_true_seq, H_seq, H_cbe],
-    ["True Hessian", "Sequential Approx", "CBE Approx"],
-    f"Hessian Comparison ({OBJ_NAME}, {METHOD}, B={BATCH_SIZE}, D={DIMENSION})",
-    true_hess=H_true_seq,
-    filename=f"hessian_comparison_all_{OBJ_NAME}_{METHOD}_B{BATCH_SIZE}_D{DIMENSION}.pdf",
+# Inverse Hessian ヒートマップ
+plot_hessian_triplet(
+    Hinv_true_seq,
+    Hinv_seq,
+    Hinv_cbe,
+    titles=("(a) True", "(b) Sequential Opt. approx.", "(c) C-BE approx."),
+    approx_names=("Seq", "CBE"),
+    out_pdf_path=os.path.join(
+        OUTPUT_DIR, f"hessian_inv_comparison_triplet_{SUFFIX}.pdf"
+    ),
 )
-
-
-# --- 比較図（真値 vs 近似） ---
-err_max = max(np.abs(H_true_seq - H_seq).max(), np.abs(H_true_seq - H_cbe).max())
-compare_hess_and_error(
-    H_true_seq,
-    H_cbe,
-    f"CBE Approximation ({OBJ_NAME}, {METHOD}, B={BATCH_SIZE}, D={DIMENSION})",
-    error_max=err_max,
-    filename=f"hessian_comparison_CBE_{OBJ_NAME}_{METHOD}_B{BATCH_SIZE}_D{DIMENSION}.pdf",
-)
-compare_hess_and_error(
-    H_true_seq,
-    H_seq,
-    f"Sequential Approximation ({OBJ_NAME}, {METHOD}, B={BATCH_SIZE}, D={DIMENSION})",
-    error_max=err_max,
-    filename=f"hessian_comparison_sequential_{OBJ_NAME}_{METHOD}_B{BATCH_SIZE}_D{DIMENSION}.pdf",
-)
-
-# %%
-# Hessian Inverse
-compare_hessians(
-    [Hinv_true_seq, Hinv_seq, Hinv_cbe],
-    ["True Hessian Inv", "Sequential Approx Inv", "CBE Approx Inv"],
-    f"Hessian Inverse Comparison ({OBJ_NAME}, {METHOD}, B={BATCH_SIZE}, D={DIMENSION})",
-    true_hess=Hinv_true_seq,
-    filename=f"hessian_inv_comparison_all_{OBJ_NAME}_{METHOD}_B{BATCH_SIZE}_D{DIMENSION}.pdf",
-)
-
 # --- 比較図（真値 vs 近似） ---
 err_max_inv = max(
     np.abs(Hinv_true_seq - Hinv_seq).max(), np.abs(Hinv_true_seq - Hinv_cbe).max()
@@ -262,7 +280,7 @@ compare_hess_and_error(
     Hinv_cbe,
     f"CBE Approximation Inv ({OBJ_NAME}, {METHOD}, B={BATCH_SIZE}, D={DIMENSION})",
     error_max=err_max_inv,
-    filename=f"hessian_inv_comparison_CBE_{OBJ_NAME}_{METHOD}_B{BATCH_SIZE}_D{DIMENSION}.pdf",
+    filename=f"hessian_inv_comparison_CBE_{SUFFIX}.pdf",
     is_inverse=True,
 )
 compare_hess_and_error(
@@ -270,7 +288,7 @@ compare_hess_and_error(
     Hinv_seq,
     f"Sequential Approximation Inv ({OBJ_NAME}, {METHOD}, B={BATCH_SIZE}, D={DIMENSION})",
     error_max=err_max_inv,
-    filename=f"hessian_inv_comparison_sequential_{OBJ_NAME}_{METHOD}_B{BATCH_SIZE}_D{DIMENSION}.pdf",
+    filename=f"hessian_inv_comparison_sequential_{SUFFIX}.pdf",
     is_inverse=True,
 )
 
