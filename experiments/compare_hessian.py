@@ -18,11 +18,11 @@ from src.benchmark_funcs import (
 from src.coupling_wrapper import couple_f, couple_grad
 
 # %%
-RNG_SEED = 200
+RNG_SEED = 42
 BATCH_SIZE = 10
 DIMENSION = 5
 LB, UB = 0.0, 3.0
-METHOD = "BFGS"  # "BFGS"
+METHOD = "L-BFGS-B"  # "L-BFGS-B" or "BFGS"
 OBJ_NAME = "Rosenbrock"
 OUTPUT_DIR = "hessian_comparison"
 SUFFIX = f"{OBJ_NAME}_{METHOD}_B{BATCH_SIZE}_D{DIMENSION}_seed{RNG_SEED}"
