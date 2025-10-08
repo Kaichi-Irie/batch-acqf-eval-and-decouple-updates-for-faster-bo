@@ -24,7 +24,7 @@ DIMENSION = 5
 MEMORY_SIZE = 10
 LB, UB = (0, 3)
 BOUNDS = [(LB, UB)] * DIMENSION
-METHOD = "BFGS"  # "BFGS", "L-BFGS-B"
+METHOD = "L-BFGS-B"  # "L-BFGS-B" or "BFGS"
 if METHOD == "BFGS":
     MEMORY_SIZE = None  # BFGSではメモリサイズは不要
     BOUNDS = None
