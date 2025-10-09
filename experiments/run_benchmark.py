@@ -2,9 +2,10 @@
 import argparse
 import json
 import os
+import pathlib
+import shutil
 import sys
 from collections import defaultdict
-from itertools import product
 
 import numpy as np
 
@@ -48,7 +49,11 @@ def execute_benchmark(
     if skip_if_exists and os.path.exists(os.path.join(output_dir, log_file)):
         print(f"Skip existing: {log_file}")
         return
-    storage = JournalStorage(JournalFileBackend(os.path.join(output_dir, log_file)))
+    
+    workdir = pathlib.Path(
+        os.environ.get("SGE_LOCALDIR", os.environ.get("TMPDIR", "/tmp"))
+    )
+    storage = JournalStorage(JournalFileBackend(os.path.join(workdir, log_file)))
 
     study = optuna.create_study(
         directions=objective.directions, sampler=sampler, storage=storage
@@ -75,8 +80,9 @@ def execute_benchmark(
         "n_iter_mean": None,
     }
 
+    summary_file_path = os.path.join(output_dir, summary_file)
     if not sampler.nit_stats_list:
-        with open(os.path.join(output_dir, summary_file), "a") as f:
+        with open(summary_file_path, "a") as f:
             f.write(json.dumps(summary) + "\n")
         return
 
@@ -90,7 +96,7 @@ def execute_benchmark(
         means.append(nit_stat["mean"])
     summary["n_iter_median"] = float(np.median(medians))
     summary["n_iter_mean"] = float(np.mean(means))
-    with open(os.path.join(output_dir, summary_file), "a") as f:
+    with open(summary_file_path, "a") as f:
         f.write(json.dumps(summary) + "\n")
 
     # save iteration info
@@ -103,63 +109,72 @@ def execute_benchmark(
     with open(os.path.join(output_dir, "iterinfo_" + log_file), "w") as f:
         f.write(json.dumps(iteration_info) + "\n")
 
+    # copy results from workdir to output_dir
+    shutil.copy(os.path.join(workdir, log_file), os.path.join(output_dir, log_file))
+    # clean up workdir
+    shutil.rmtree(workdir, ignore_errors=True)
+
 
 # %%
-
-if __name__ == "__main__":
+def parse():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--summary_file", type=str, default="summary.jsonl", help="Summary file name"
-    )
-    parser.add_argument(
-        "--n_trials", type=int, default=300, help="Number of trials per run"
-    )
-    parser.add_argument(
-        "--n_seeds",
+        "--seed",
         type=int,
-        default=1,
-        help="Random seed for the benchmark. seed=0-(n_seeds-1)",
+        help="Random seed",
     )
     parser.add_argument(
-        "--output_dir", type=str, default="results", help="Directory to save results"
-    )
-    parser.add_argument(
-        "--resume", action="store_true", help="Whether to resume from existing results"
-    )
-    parser.add_argument(
-        "--function_ids",
+        "--function_id",
         type=int,
-        nargs="+",
-        default=[1],
-        help="Function IDs to run (e.g., 1-24)",
+        help="BBOB function ID (1-24)",
     )
     parser.add_argument(
-        "--dimensions",
+        "--dimension",
         type=int,
-        nargs="+",
-        default=[20],
-        help="Dimensions to run (e.g., 5 10 20 40)",
+        help="BBOB problem dimension (2, 3, 5, 10, 20, 40)",
     )
-    args = parser.parse_args()
-    seeds = range(args.n_seeds)  # [42, 43, 44]  # [42, 43, 44]
-    # https://numbbo.github.io/coco/testsuites/bbob
-    function_ids = args.function_ids
-    dimensions = args.dimensions
-    modes = [
-        "original",
-        "coupled_batch_evaluation",  # "CBE",
-        "decoupled_batch_evaluation",  # "DBE",
-    ]
-    for seed, function_id, dimension, mode in product(
-        seeds, function_ids, dimensions, modes
-    ):
-        execute_benchmark(
-            function_id=function_id,
-            dimension=dimension,
-            mode=mode,  # type: ignore
-            n_trials=args.n_trials,
-            seed=seed,
-            summary_file=args.summary_file,
-            output_dir=args.output_dir,
-            skip_if_exists=args.resume,
-        )
+    parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["original", "decoupled_batch_evaluation", "coupled_batch_evaluation"],
+        help="Sampler mode",
+    )
+    parser.add_argument(
+        "--n_trials",
+        type=int,
+        help="Number of trials per run",
+    )
+    parser.add_argument(
+        "--summary_file",
+        type=str,
+        default="summary.jsonl",
+        help="Summary file name",
+    )
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        default="results",
+        help="Directory to save results",
+    )
+    parser.add_argument(
+        "--skip_if_exists",
+        action="store_true",
+        help="Skip if the log file already exists",
+    )
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = parse()
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    execute_benchmark(
+        function_id=args.function_id,
+        dimension=args.dimension,
+        mode=args.mode,
+        n_trials=args.n_trials,
+        seed=args.seed,
+        summary_file=args.summary_file,
+        output_dir=args.output_dir,
+        skip_if_exists=args.skip_if_exists,
+    )
