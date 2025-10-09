@@ -2,12 +2,14 @@ import time
 from typing import Literal
 
 import numpy as np
+
 import optuna._gp.acqf as acqf_module
 from optuna.samplers import GPSampler
 
-from . import cbe_optim_mixed, seqopt_optim_mixed
 from . import (
+    cbe_optim_mixed,
     dbe_optim_mixed,
+    seqopt_optim_mixed,
 )
 
 SAMPLERMODE = Literal[

@@ -2,12 +2,12 @@ import math
 
 import numpy as np
 import torch
+
 from optuna._gp.acqf import BaseAcquisitionFunc
 from optuna._gp.scipy_blas_thread_patch import (
     single_blas_thread_if_scipy_v1_15_or_newer,
 )
 from optuna.logging import get_logger
-
 from src import batched_lbfgsb as b_opt
 
 _logger = get_logger(__name__)

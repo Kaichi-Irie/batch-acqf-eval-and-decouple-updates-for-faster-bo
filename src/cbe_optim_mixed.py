@@ -3,6 +3,7 @@ import math
 import numpy as np
 import scipy.optimize as so
 import torch
+
 from optuna._gp.acqf import BaseAcquisitionFunc
 from optuna._gp.scipy_blas_thread_patch import (
     single_blas_thread_if_scipy_v1_15_or_newer,
@@ -214,4 +215,4 @@ def optimize_acqf_mixed(
         "mean": nit,
     }
 
-    return best_x, best_f, nit_stats # type: ignore
+    return best_x, best_f, nit_stats  # type: ignore
