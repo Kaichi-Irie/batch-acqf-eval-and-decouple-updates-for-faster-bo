@@ -21,9 +21,9 @@ BBOB = optunahub.load_module("benchmarks/bbob")
 
 # %%
 def execute_benchmark(
-    mode: SAMPLERMODE,
-    dimension,
     function_id,
+    dimension,
+    mode: SAMPLERMODE,
     n_trials,
     seed,
     summary_file="summary.jsonl",
@@ -140,23 +140,22 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     seeds = range(args.n_seeds)  # [42, 43, 44]  # [42, 43, 44]
-    n_trials = args.n_trials  # 回せるだけ回す~500
     # https://numbbo.github.io/coco/testsuites/bbob
     function_ids = args.function_ids
     dimensions = args.dimensions
-    modes: list[SAMPLERMODE] = [
+    modes = [
         "original",
         "coupled_batch_evaluation",  # "CBE",
         "decoupled_batch_evaluation",  # "DBE",
     ]
-    for function_id, dimension, seed, mode in product(
-        function_ids, dimensions, seeds, modes
+    for seed, function_id, dimension, mode in product(
+        seeds, function_ids, dimensions, modes
     ):
         execute_benchmark(
             function_id=function_id,
             dimension=dimension,
-            mode=mode,
-            n_trials=n_trials,
+            mode=mode,  # type: ignore
+            n_trials=args.n_trials,
             seed=seed,
             summary_file=args.summary_file,
             output_dir=args.output_dir,
