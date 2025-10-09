@@ -1,4 +1,5 @@
 # %%
+import argparse
 import json
 import os
 import sys
@@ -27,6 +28,7 @@ def execute_benchmark(
     seed,
     summary_file="summary.jsonl",
     output_dir="results",
+    skip_if_exists=True,
 ):
     objective = BBOB.Problem(
         function_id=function_id, dimension=dimension, instance_id=1
@@ -41,6 +43,9 @@ def execute_benchmark(
     log_file = (
         f"f{function_id}_{dimension}D_seed{seed}_{short_mode}_{n_trials}_trials.jsonl"
     )
+    if skip_if_exists and os.path.exists(os.path.join(output_dir, log_file)):
+        print(f"Skip existing: {log_file}")
+        return
     storage = JournalStorage(JournalFileBackend(os.path.join(output_dir, log_file)))
 
     study = optuna.create_study(
@@ -98,12 +103,47 @@ def execute_benchmark(
 
 
 # %%
+
 if __name__ == "__main__":
-    seeds = range(3)  # [42, 43, 44]  # [42, 43, 44]
-    n_trials = 100  # 回せるだけ回す~500
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--summary_file", type=str, default="summary.jsonl", help="Summary file name"
+    )
+    parser.add_argument(
+        "--n_trials", type=int, default=300, help="Number of trials per run"
+    )
+    parser.add_argument(
+        "--n_seeds",
+        type=int,
+        default=1,
+        help="Random seed for the benchmark. seed=0-(n_seeds-1)",
+    )
+    parser.add_argument(
+        "--output_dir", type=str, default="results", help="Directory to save results"
+    )
+    parser.add_argument(
+        "--resume", action="store_true", help="Whether to resume from existing results"
+    )
+    parser.add_argument(
+        "--function_ids",
+        type=int,
+        nargs="+",
+        default=[1],
+        help="Function IDs to run (e.g., 1-24)",
+    )
+    parser.add_argument(
+        "--dimensions",
+        type=int,
+        nargs="+",
+        default=[20],
+        help="Dimensions to run (e.g., 5 10 20 40)",
+    )
+    args = parser.parse_args()
+    seeds = range(args.n_seeds)  # [42, 43, 44]  # [42, 43, 44]
+    n_trials = args.n_trials  # 回せるだけ回す~500
     # https://numbbo.github.io/coco/testsuites/bbob
-    function_ids = [6]  # , 15]  # [1,6,10,15,20]
-    dimensions = [10]  # , 20, 40]  # [5,10,20]
+    function_ids = args.function_ids
+    dimensions = args.dimensions
     modes: list[SAMPLERMODE] = [
         "original",
         "coupled_batch_evaluation",  # "CBE",
@@ -118,6 +158,7 @@ if __name__ == "__main__":
             mode=mode,
             n_trials=n_trials,
             seed=seed,
-            summary_file="summary_tmp.jsonl",
-            output_dir="results",
+            summary_file=args.summary_file,
+            output_dir=args.output_dir,
+            skip_if_exists=args.resume,
         )
