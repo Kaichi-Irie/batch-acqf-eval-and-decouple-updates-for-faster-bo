@@ -2,8 +2,6 @@
 import argparse
 import json
 import os
-import pathlib
-import shutil
 import sys
 from collections import defaultdict
 
@@ -20,7 +18,6 @@ from src.batched_sampler import SAMPLERMODE, BatchedSampler
 
 # %%
 BBOB = optunahub.load_module("benchmarks/bbob")
-
 
 # %%
 def execute_benchmark(
@@ -49,11 +46,9 @@ def execute_benchmark(
     if skip_if_exists and os.path.exists(os.path.join(output_dir, log_file)):
         print(f"Skip existing: {log_file}")
         return
-    
-    workdir = pathlib.Path(
-        os.environ.get("SGE_LOCALDIR", os.environ.get("TMPDIR", "/tmp"))
-    )
-    storage = JournalStorage(JournalFileBackend(os.path.join(workdir, log_file)))
+
+
+    storage = JournalStorage(JournalFileBackend(os.path.join(output_dir, log_file)))
 
     study = optuna.create_study(
         directions=objective.directions, sampler=sampler, storage=storage
@@ -62,10 +57,14 @@ def execute_benchmark(
     study.optimize(objective, n_trials=n_trials)
 
     print(study.best_trial.params, study.best_trial.value)
-    elapsed = (
-        study.trials[-1].datetime_complete - study.trials[0].datetime_start
-    ).total_seconds()  # type: ignore
-    print(f"{mode} took {elapsed:.2f} seconds. ")
+    time_comple = study.best_trial.datetime_complete
+    time_start = study.best_trial.datetime_start
+    if time_comple and time_start:
+        elapsed = (time_comple - time_start).total_seconds()
+        print(f"{mode} took {elapsed:f} seconds. ")
+    else:
+        elapsed = -1.0
+        print(f"{mode} took unknown seconds. ")
 
     summary = {
         "function_id": function_id,
@@ -108,12 +107,6 @@ def execute_benchmark(
     # save as JSONL
     with open(os.path.join(output_dir, "iterinfo_" + log_file), "w") as f:
         f.write(json.dumps(iteration_info) + "\n")
-
-    # copy results from workdir to output_dir
-    shutil.copy(os.path.join(workdir, log_file), os.path.join(output_dir, log_file))
-    # clean up workdir
-    shutil.rmtree(workdir, ignore_errors=True)
-
 
 # %%
 def parse():
@@ -162,7 +155,6 @@ def parse():
         help="Skip if the log file already exists",
     )
     return parser.parse_args()
-
 
 if __name__ == "__main__":
     args = parse()
