@@ -57,8 +57,8 @@ def execute_benchmark(
     study.optimize(objective, n_trials=n_trials)
 
     print(study.best_trial.params, study.best_trial.value)
-    time_comple = study.best_trial.datetime_complete
-    time_start = study.best_trial.datetime_start
+    time_comple = study.trials[-1].datetime_complete
+    time_start = study.trials[0].datetime_start
     if time_comple and time_start:
         elapsed = (time_comple - time_start).total_seconds()
         print(f"{mode} took {elapsed:f} seconds. ")
