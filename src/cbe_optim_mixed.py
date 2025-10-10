@@ -94,7 +94,7 @@ def _gradient_ascent(
             func=negative_acqf_with_grad,
             x0=x0.flatten(),
             bounds=bounds.tolist(),
-            pgtol=math.sqrt(tol),
+            pgtol=math.sqrt(tol) * batch_size,
             maxiter=200,
         )
         # reshape from (B*D,) to (B,D)
