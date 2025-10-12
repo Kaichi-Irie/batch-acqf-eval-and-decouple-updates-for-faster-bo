@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -q rt_HF
-#PBS -l select=120
-#PBS -l walltime=6:00:00
+#PBS -l select=2
+#PBS -l walltime=0:10:00
 #PBS -P gaa50073
 #PBS -j oe
 #PBS -k oe
