@@ -15,14 +15,14 @@ source venv/bin/activate
 
 echo "PBS_O_WORKDIR=${PBS_O_WORKDIR:-"(not set)"}"
 echo "PBS_ARRAY_INDEX=${PBS_ARRAY_INDEX:-"(not set)"}"
-read -r SEED FID DIM MODE N_TRIALS < <(sed -n "${PBS_ARRAY_INDEX}p" params.tsv)
-echo "SEED=${SEED}, FID=${FID}, DIM=${DIM}, MODE=${MODE}, N_TRIALS=${N_TRIALS}"
+read -r N_SEEDS FID DIM N_TRIALS < <(sed -n "${PBS_ARRAY_INDEX}p" params.tsv)
+echo "N_SEEDS=${N_SEEDS}, FID=${FID}, DIM=${DIM}, N_TRIALS=${N_TRIALS}"
 
 python experiments/run_benchmark.py \
   --function_id "${FID}" \
   --dimension "${DIM}" \
-  --mode "${MODE}" \
-  --seed "${SEED}" \
+  --n_seeds "${N_SEEDS}" \
+  --mode "all" \
   --n_trials "${N_TRIALS}" \
   --output_dir results \
   --summary_file summary_f"${FID}"_"${DIM}"D.jsonl \

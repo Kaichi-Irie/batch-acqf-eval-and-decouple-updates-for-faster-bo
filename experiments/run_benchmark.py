@@ -1,5 +1,6 @@
 # %%
 import argparse
+import itertools
 import json
 import os
 import sys
@@ -18,6 +19,7 @@ from src.batched_sampler import SAMPLERMODE, BatchedSampler
 
 # %%
 BBOB = optunahub.load_module("benchmarks/bbob")
+
 
 # %%
 def execute_benchmark(
@@ -46,7 +48,6 @@ def execute_benchmark(
     if skip_if_exists and os.path.exists(os.path.join(output_dir, log_file)):
         print(f"Skip existing: {log_file}")
         return
-
 
     storage = JournalStorage(JournalFileBackend(os.path.join(output_dir, log_file)))
 
@@ -108,28 +109,34 @@ def execute_benchmark(
     with open(os.path.join(output_dir, "iterinfo_" + log_file), "w") as f:
         f.write(json.dumps(iteration_info) + "\n")
 
+
 # %%
 def parse():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--seed",
+        "--n_seeds",
         type=int,
-        help="Random seed",
+        help="Number of random seeds (used seeds: 0 - n_seeds-1)",
     )
     parser.add_argument(
         "--function_id",
         type=int,
-        help="BBOB function ID (1-24)",
+        help="List of BBOB function IDs (1-24)",
     )
     parser.add_argument(
         "--dimension",
         type=int,
-        help="BBOB problem dimension (2, 3, 5, 10, 20, 40)",
+        help="List of BBOB problem dimensions (2, 3, 5, 10, 20, 40)",
     )
     parser.add_argument(
         "--mode",
         type=str,
-        choices=["original", "decoupled_batch_evaluation", "coupled_batch_evaluation"],
+        choices=[
+            "original",
+            "decoupled_batch_evaluation",
+            "coupled_batch_evaluation",
+            "all",
+        ],
         help="Sampler mode",
     )
     parser.add_argument(
@@ -156,17 +163,27 @@ def parse():
     )
     return parser.parse_args()
 
+
 if __name__ == "__main__":
     args = parse()
     os.makedirs(args.output_dir, exist_ok=True)
-
-    execute_benchmark(
-        function_id=args.function_id,
-        dimension=args.dimension,
-        mode=args.mode,
-        n_trials=args.n_trials,
-        seed=args.seed,
-        summary_file=args.summary_file,
-        output_dir=args.output_dir,
-        skip_if_exists=args.skip_if_exists,
-    )
+    if args.mode == "all":
+        modes = [
+            "original",
+            "decoupled_batch_evaluation",
+            "coupled_batch_evaluation",
+        ]
+    else:
+        modes = [args.mode]
+    seeds = range(args.n_seeds)
+    for seed, mode in itertools.product(seeds, modes):
+        execute_benchmark(
+            function_id=args.function_id,
+            dimension=args.dimension,
+            mode=mode,  # type: ignore[arg-type]
+            n_trials=args.n_trials,
+            seed=seed,
+            summary_file=args.summary_file,
+            output_dir=args.output_dir,
+            skip_if_exists=args.skip_if_exists,
+        )
