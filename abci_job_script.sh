@@ -1,10 +1,8 @@
 #!/bin/bash
-#PBS -q rt_HF
-#PBS -l select=2
-#PBS -l walltime=0:10:00
+#PBS -q rt_HC
+#PBS -l select=1
+#PBS -l walltime=8:00:00
 #PBS -P gaa50073
-#PBS -j oe
-#PBS -k oe
 #PBS -v USE_SSH=1
 #PBS -N aaai2026-exp
 #PBS -m ae
