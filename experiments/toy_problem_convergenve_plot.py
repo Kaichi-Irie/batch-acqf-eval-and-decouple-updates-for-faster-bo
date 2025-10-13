@@ -41,7 +41,6 @@ def run_cbe_with_history(
     ub: float,
     memory_size: int | None = None,
 ) -> tuple[Any, list[float]]:
-    """スタック最適化（合計目的値の履歴を採取）"""
     assert xs0.ndim == 2
     batch_size, dim = xs0.shape
     print(f"Running CBE with B={batch_size}, D={dim}, method={method}")
@@ -141,7 +140,6 @@ def plot_mean_and_std(
     outpath: str | None = None,
     plot_mean_only: bool = False,
 ) -> None:
-    """各系列の平均曲線と（任意で）±標準偏差の帯を描画"""
     assert len(means) == len(labels)
     if stds is not None:
         assert len(stds) == len(labels)
@@ -178,7 +176,7 @@ def plot_with_quartiles(
 ) -> None:
     assert len(q25s) == len(q50s) == len(q75s) == len(labels)
 
-    plt.figure(figsize=(8, 6))
+    plt.figure(figsize=(6.5, 4))
 
     for i, (q25, q50, q75, label) in enumerate(zip(q25s, q50s, q75s, labels)):
         x = np.arange(len(q50))
@@ -248,13 +246,17 @@ if __name__ == "__main__":
     #     ylabel="Average Objective per Problem (log scale)",
     #     outpath=output_filepath,
     # )
-
+    filename = f"convergence_{OBJ_NAME}_{METHOD}_D{DIMENSION}"
+    filename += f"_UB{UB}_LB{LB}_M{MEMORY_SIZE}" if METHOD == "L-BFGS-B" else ""
     plot_with_quartiles(
         q25s,
         q50s,
         q75s,
         labels,
-        f"Convergence Comparison (median ± IQR) {OBJ_NAME}, {METHOD}, D={DIMENSION}, BD={LB}~{UB}",
-        ylabel="Average Objective per Problem (log scale)",
-        outpath=f"convergence_plot/convergence_{OBJ_NAME}_{METHOD}_D{DIMENSION}_UB{UB}_LB{LB}_M{10}_quartiles.pdf",
+        "Convergence Comparison (median ± IQR)",
+        ylabel="Avg. Objective Value",
+        outpath=f"convergence_plot/{filename}_quartiles.pdf",
     )
+
+
+# %%
