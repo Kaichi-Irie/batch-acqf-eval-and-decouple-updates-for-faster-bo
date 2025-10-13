@@ -211,5 +211,6 @@ __marimo__/
 tmp*
 *.jsonl
 *.csv
+*.tsv
 *.pdf
 *.png
