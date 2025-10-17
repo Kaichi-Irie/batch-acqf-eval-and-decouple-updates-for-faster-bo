@@ -26,12 +26,14 @@ LB, UB = (0, 3)
 BOUNDS = [(LB, UB)] * DIMENSION
 METHOD = "L-BFGS-B"  # "L-BFGS-B" or "BFGS"
 if METHOD == "BFGS":
-    MEMORY_SIZE = None  # BFGSではメモリサイズは不要
+    MEMORY_SIZE = None
     BOUNDS = None
 
 OBJ_NAME = "Rosenbrock"
 OUTPUT_DIR = "results/figures/convergence_plot"
 np.random.seed(SEED)
+plt.rcParams["text.usetex"] = True
+plt.rcParams["font.family"] = "Times New Roman"  # Fonts
 
 
 def run_cbe_with_history(
@@ -72,9 +74,6 @@ def run_cbe_with_history(
 
 
 def calculate_average_per_batch(histories: list[float], batch_size: int) -> list[float]:
-    """
-    最適値は、各問題の最適値の和であるので、各バッチでの平均値にする
-    """
     return [fval / batch_size for fval in histories]
 
 
@@ -105,7 +104,6 @@ def plot_convergence(
 
 
 def pad_histories_to_same_length(histories: list[list[float]]) -> np.ndarray:
-    """複数履歴 -> 同じ長さの2次元配列に変換"""
     median_length = statistics.median(len(h) for h in histories)
     median_length = int(median_length)
     median_length = int(median_length)
@@ -121,7 +119,6 @@ def pad_histories_to_same_length(histories: list[list[float]]) -> np.ndarray:
 def stats_from_histories(
     histories: list[list[float]],
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """複数履歴 -> (平均, 標準偏差)"""
     H = pad_histories_to_same_length(histories)
     mean = np.mean(H, axis=0)
     std = np.std(H, axis=0, ddof=0)
@@ -148,7 +145,7 @@ def plot_mean_and_std(
 
     for i, (m, label) in enumerate(zip(means, labels)):
         x = np.arange(len(m))
-        (line,) = plt.plot(x, m, label=label)  # 色はmatplotlibに任せる
+        (line,) = plt.plot(x, m, label=label)
         if (not plot_mean_only) and stds is not None:
             s = stds[i]
             plt.fill_between(x, m - s, m + s, alpha=0.2)
@@ -176,20 +173,20 @@ def plot_with_quartiles(
 ) -> None:
     assert len(q25s) == len(q50s) == len(q75s) == len(labels)
 
-    plt.figure(figsize=(6.5, 4))
+    plt.figure(figsize=(5, 2.5))
 
     for i, (q25, q50, q75, label) in enumerate(zip(q25s, q50s, q75s, labels)):
         x = np.arange(len(q50))
-        (line,) = plt.plot(x, q50, label=label)  # 色はmatplotlibに任せる
+        (line,) = plt.plot(x, q50, label=label)
         plt.fill_between(x, q25, q75, alpha=0.1)
 
     plt.yscale("log")
     plt.grid(True, which="both", linestyle="--", linewidth=0.5)
-    plt.xlabel("Iterations")
-    plt.ylabel(ylabel)
+    plt.xlabel("Iterations", fontsize=12)
+    plt.ylabel(ylabel, fontsize=12)
     # plt.ylim(1e-7, 1e2)
-    plt.title(title)
-    plt.legend()
+    plt.title(title)  # , fontsize=18)
+    plt.legend()  # fontsize=16)
     plt.tight_layout()
     if outpath:
         plt.savefig(outpath)
@@ -201,8 +198,8 @@ if __name__ == "__main__":
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     x_min = get_rosen_minimum(DIMENSION)
     batch_sizes = [1, 2, 5, 10]  # 5, 10]
-    memory_sizes = [None]  # , 40]  # L-BFGSのメモリサイズ
-    num_seeds = 300  # 各バッチサイズでのランダム初期点の数（シード数）
+    memory_sizes = [None]  # , 40]
+    num_seeds = 100
     random_initial_points = np.random.uniform(
         LB, UB, size=(math.lcm(*batch_sizes) * num_seeds, DIMENSION)
     )
@@ -231,9 +228,9 @@ if __name__ == "__main__":
         q50s.append(q50)
         q75s.append(q75)
         label = (
-            f"B={batch_size}"
+            f"$B={batch_size}$"
             if memory_size is None
-            else f"B={batch_size}, M={memory_size}"
+            else f"$B={batch_size}$, $M={memory_size}$"
         )
         labels.append(label)
 
@@ -255,8 +252,21 @@ if __name__ == "__main__":
         labels,
         "Convergence Comparison (median ± IQR)",
         ylabel="Avg. Objective Value",
-        outpath=f"convergence_plot/{filename}_quartiles.pdf",
+        outpath=f"convergence_plot/{filename}_quartiles_seed{SEED}.pdf",
     )
 
+
+# %%
+filename = f"convergence_{OBJ_NAME}_{METHOD}_D{DIMENSION}"
+filename += f"_UB{UB}_LB{LB}_M{MEMORY_SIZE}" if METHOD == "L-BFGS-B" else ""
+plot_with_quartiles(
+    q25s,
+    q50s,
+    q75s,
+    labels,
+    "Convergence Comparison (median ± IQR)",
+    ylabel="Avg. Objective Value",
+    outpath=f"convergence_plot/{filename}_quartiles_seed{SEED}.pdf",
+)
 
 # %%
