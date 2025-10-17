@@ -57,7 +57,7 @@ def dixon_price_func(x: np.ndarray) -> np.ndarray:
     Dixon-Price Function.
     Input: (N,D) shape, Output: (N,) shape"""
     if x.ndim == 1:
-        x = x[None, :]  # 1D配列を2Dに変換
+        x = x[None, :]
     return np.array([dixon_price_func1D(xi) for xi in x]).squeeze()
 
 
@@ -66,17 +66,14 @@ def dixon_price_grad1D(x: np.ndarray) -> np.ndarray:
     n = len(x)
     grad = np.zeros(n)
 
-    # 最初の変数の勾配
     grad[0] = 2 * (x[0] - 1) - 4 * (2 * x[1] ** 2 - x[0])
 
-    # 中間の変数の勾配
     for i in range(1, n - 1):
         coeff = float(i + 1)
         grad[i] = 8 * coeff * (2 * x[i] ** 2 - x[i - 1]) * x[i] - 2 * (
             float(i + 2) * (2 * x[i + 1] ** 2 - x[i])
         )
 
-    # 最後の変数の勾配
     coeff = float(n)
     grad[n - 1] = 8 * coeff * (2 * x[n - 1] ** 2 - x[n - 2]) * x[n - 1]
 
@@ -85,7 +82,7 @@ def dixon_price_grad1D(x: np.ndarray) -> np.ndarray:
 
 def dixon_price_grad(x: np.ndarray) -> np.ndarray:
     if x.ndim == 1:
-        x = x[None, :]  # 1D配列を2Dに変換
+        x = x[None, :]
     return np.array([dixon_price_grad1D(xi) for xi in x]).squeeze()
 
 
@@ -94,10 +91,8 @@ def dixon_price_hess(x: np.ndarray) -> np.ndarray:
     n = len(x)
     hess = np.zeros((n, n))
 
-    # 最初の項の寄与
     hess[0, 0] = 2.0
 
-    # 総和の項の寄与
     for i in range(1, n):
         coeff = float(i + 1)
 
@@ -111,7 +106,7 @@ def dixon_price_hess(x: np.ndarray) -> np.ndarray:
 
 def get_dixon_price_minimum(dimension: int) -> np.ndarray:
     if dimension < 1:
-        raise ValueError("次元nは1以上である必要があります。")
+        raise ValueError("Dimension n must be greater than or equal to 1.")
 
     x_min = np.zeros(dimension)
     for i in range(1, dimension + 1):

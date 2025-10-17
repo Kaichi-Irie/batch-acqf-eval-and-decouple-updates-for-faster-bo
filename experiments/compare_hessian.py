@@ -135,7 +135,7 @@ def compare_hess_and_error(
 
 
 def relative_error_fro(hess_true: np.ndarray, hess_approx: np.ndarray) -> float:
-    """||H - Ĥ||_F / ||H||_F を返す。真行列が全ゼロの場合は np.nan。"""
+    """Returns ||H - Ĥ||_F / ||H||_F. Returns np.nan if the true matrix is all zeros."""
     assert hess_true.ndim == 2 and hess_approx.ndim == 2
     assert hess_true.shape == hess_approx.shape
     denom = np.linalg.norm(hess_true, ord="fro")
@@ -156,30 +156,26 @@ def plot_hessian_triplet(
     out_pdf_path="hessian_comparison.pdf",
 ):
     """
-    3つの行列（真・近似2種）のヒートマップを横並びで比較し、右端に共通カラーバーを出力する。
-    - 相対誤差（Frobeniusノルム比）を近似のサブタイトルに表示。
-    - PDF保存時に余白を最小化（bbox_inches='tight', pad_inches=0）。
-    - カラースケールは3枚で共通、ゼロ中心の TwoSlopeNorm を採用。
+    Compare three matrices (true, approx. 2 types) side-by-side with heatmaps and a common color bar at the right end.
+    - Display relative error (Frobenius norm ratio) in the subtitle of the approximation.
+    - Minimize margins when saving PDF (bbox_inches='tight', pad_inches=0).
+    - Use a common color scale for all 3 plots, with a zero-centered TwoSlopeNorm.
     """
-    # --- 共通スケール（ゼロ中心、左右対称が見やすい） ---
-    # data_all = np.stack([H_true, H_approx_a, H_approx_b], axis=0)
     v_abs = np.nanmax(np.abs(H_true)) * 1.2
     if not np.isfinite(v_abs) or v_abs == 0:
-        v_abs = 1.0  # 退避（全ゼロやNaNのみ対策）
+        v_abs = 1.0
     # norm = TwoSlopeNorm(vmin=-v_abs, vcenter=0.0, vmax=v_abs)
     vmin, vmax = H_true.min(), H_true.max()
     vmax += (vmax - vmin) * 0.2
     vmin -= (vmax - vmin) * 0.2
-    # --- 相対誤差（Frobenius） ---
     rel_a = relative_error_fro(H_true, H_approx_a)
     rel_b = relative_error_fro(H_true, H_approx_b)
 
-    # --- 図の作成（余白を極小に） ---
     plt.rcParams.update(
         {
             "savefig.bbox": "tight",
             "savefig.pad_inches": 0.0,
-            "pdf.fonttype": 42,  # ベクトルフォント埋め込み（Illustrator等でも文字化けしにくい）
+            "pdf.fonttype": 42,
             "ps.fonttype": 42,
         }
     )
@@ -187,11 +183,10 @@ def plot_hessian_triplet(
         1,
         3,
         figsize=(fig_width_in, fig_height_in),
-        constrained_layout=True,  # 余白の自動調整
+        constrained_layout=True,
     )
 
     mats = [H_true, H_approx_a, H_approx_b]
-    # タイトル行。近似はサブタイトルに相対誤差を表示
     panel_titles = [
         titles[0],
         f"{titles[1]}\n(rel. error: {rel_a:.2e})"
@@ -201,7 +196,6 @@ def plot_hessian_triplet(
         if np.isfinite(rel_b)
         else f"{titles[2]}\n(rel. error: n/a)",
     ]
-    # panel_titles = titles
 
     images = []
     for ax, M, t in zip(axes, mats, panel_titles):
@@ -210,21 +204,16 @@ def plot_hessian_triplet(
         )
         images.append(im)
         ax.set_title(t, fontsize=12, pad=4)
-        # 研究レイアウト向けにラベル・目盛りは基本オフ（紙幅節約）
         ax.set_xticks([])
         ax.set_yticks([])
-        # 外枠を薄く
         for spine in ax.spines.values():
             spine.set_linewidth(0.6)
 
-    # --- 右端に共通カラーバー ---
-    # fig.colorbar に複数 Axes を渡すと位置調整しやすい
     cbar = fig.colorbar(
         images[0], ax=axes, location="right", shrink=0.95, pad=0.02, fraction=0.04
     )
     cbar.ax.tick_params(labelsize=8)
 
-    # --- 保存（余白極小） ---
     fig.savefig(out_pdf_path, dpi=300, bbox_inches="tight", pad_inches=0.03)
     plt.close(fig)
     return out_pdf_path
@@ -248,11 +237,9 @@ if __name__ == "__main__":
     #     assert np.allclose(r.x, x_min, atol=1e-5)
     _, Hinv_seq = make_block_hess_and_hess_inv(results_seq, METHOD)
 
-    # --- 真のヘッセ（逐次の到達点で評価） ---
     pts_seq = np.vstack([r.x for r in results_seq])
     Hinv_true_seq = true_hess_inv_block(pts_seq)
 
-    # --- 誤差（Frobenius） ---
     print("\n--- Frobenius Norm Errors (Inverse Hessian ) ---")
     relative_err_seq_inv = np.linalg.norm(
         Hinv_seq - Hinv_true_seq, ord="fro"
@@ -263,7 +250,6 @@ if __name__ == "__main__":
     print(f"Sequential Approx Inv Error: {relative_err_seq_inv:.2e}")
     print(f"CBE Approx Inv Error:  {relative_err_cbe_inv:.2e}")
     # %%
-    # Inverse Hessian ヒートマップ
     plot_hessian_triplet(
         Hinv_true_seq,
         Hinv_seq,
@@ -274,7 +260,6 @@ if __name__ == "__main__":
             OUTPUT_DIR, f"hessian_inv_comparison_triplet_{SUFFIX}.pdf"
         ),
     )
-    # --- 比較図（真値 vs 近似） ---
     err_max_inv = max(
         np.abs(Hinv_true_seq - Hinv_seq).max(), np.abs(Hinv_true_seq - Hinv_cbe).max()
     )
