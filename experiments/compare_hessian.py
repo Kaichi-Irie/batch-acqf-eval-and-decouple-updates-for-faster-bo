@@ -18,8 +18,8 @@ from src.benchmark_funcs import (
 from src.coupling_wrapper import couple_f, couple_grad
 
 # %%
-RNG_SEED = 42
-BATCH_SIZE = 10
+RNG_SEED = 4
+BATCH_SIZE = 3
 DIMENSION = 5
 LB, UB = 0.0, 3.0
 METHOD = "L-BFGS-B"  # "L-BFGS-B" or "BFGS"
@@ -27,6 +27,8 @@ OBJ_NAME = "Rosenbrock"
 OUTPUT_DIR = "hessian_comparison"
 SUFFIX = f"{OBJ_NAME}_{METHOD}_B{BATCH_SIZE}_D{DIMENSION}_seed{RNG_SEED}"
 np.random.seed(RNG_SEED)
+plt.rcParams["text.usetex"] = True
+plt.rcParams["font.family"] = "Times New Roman"  # Fonts
 
 
 def run_coupled_batch_evaluation(
@@ -151,8 +153,6 @@ def plot_hessian_triplet(
     titles=("True", "Approx A", "Approx B"),
     approx_names=("A", "B"),
     cmap="viridis",
-    fig_width_in=7.0,
-    fig_height_in=2.4,
     out_pdf_path="hessian_comparison.pdf",
 ):
     """
@@ -182,19 +182,19 @@ def plot_hessian_triplet(
     fig, axes = plt.subplots(
         1,
         3,
-        figsize=(fig_width_in, fig_height_in),
+        figsize=(7, 3.5),
         constrained_layout=True,
     )
 
     mats = [H_true, H_approx_a, H_approx_b]
     panel_titles = [
         titles[0],
-        f"{titles[1]}\n(rel. error: {rel_a:.2e})"
+        f"{titles[1]}\n($e_{{rel}}={rel_a:.2f}$)"
         if np.isfinite(rel_a)
-        else f"{titles[1]}\n(rel. error: n/a)",
-        f"{titles[2]}\n(rel. error: {rel_b:.2e})"
+        else f"{titles[1]}\n($e_{{rel}}=$n/a)",
+        f"{titles[2]}\n($e_{{rel}}={rel_b:.2f}$)"
         if np.isfinite(rel_b)
-        else f"{titles[2]}\n(rel. error: n/a)",
+        else f"{titles[2]}\n($e_{{rel}}=$n/a)",
     ]
 
     images = []
@@ -203,18 +203,25 @@ def plot_hessian_triplet(
             M, cmap=cmap, interpolation="nearest", aspect="equal", vmin=vmin, vmax=vmax
         )
         images.append(im)
-        ax.set_title(t, fontsize=12, pad=4)
+        ax.set_title(t, fontsize=18)
         ax.set_xticks([])
         ax.set_yticks([])
         for spine in ax.spines.values():
             spine.set_linewidth(0.6)
 
     cbar = fig.colorbar(
-        images[0], ax=axes, location="right", shrink=0.95, pad=0.02, fraction=0.04
+        images[0],
+        ax=axes,
+        location="right",
+        shrink=0.6,
+        # pad=0.05,
+        fraction=0.05,
+        ticks=np.round(np.linspace(vmin + 0.1, vmax - 0.1, num=6), decimals=1),
     )
-    cbar.ax.tick_params(labelsize=8)
+    cbar.ax.tick_params(labelsize=15)
 
     fig.savefig(out_pdf_path, dpi=300, bbox_inches="tight", pad_inches=0.03)
+    plt.show()
     plt.close(fig)
     return out_pdf_path
 
@@ -254,7 +261,7 @@ if __name__ == "__main__":
         Hinv_true_seq,
         Hinv_seq,
         Hinv_cbe,
-        titles=("(a) True", "(b) Sequential Opt. approx.", "(c) C-BE approx."),
+        titles=("(a) True", "(b) Seq. Opt.", "(c) C-BE"),
         approx_names=("Seq", "CBE"),
         out_pdf_path=os.path.join(
             OUTPUT_DIR, f"hessian_inv_comparison_triplet_{SUFFIX}.pdf"
@@ -279,3 +286,5 @@ if __name__ == "__main__":
         filename=f"hessian_inv_comparison_sequential_{SUFFIX}.pdf",
         is_inverse=True,
     )
+
+# %%

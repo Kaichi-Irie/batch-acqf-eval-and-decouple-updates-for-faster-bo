@@ -175,17 +175,17 @@ def plot_with_quartiles(
 
     plt.figure(figsize=(5, 2.5))
 
-    for i, (q25, q50, q75, label) in enumerate(zip(q25s, q50s, q75s, labels)):
+    for q25, q50, q75, label in zip(q25s, q50s, q75s, labels):
         x = np.arange(len(q50))
-        (line,) = plt.plot(x, q50, label=label)
+        plt.plot(x, q50, label=label)
         plt.fill_between(x, q25, q75, alpha=0.1)
 
     plt.yscale("log")
     plt.grid(True, which="both", linestyle="--", linewidth=0.5)
-    plt.xlabel("Iterations", fontsize=12)
-    plt.ylabel(ylabel, fontsize=12)
+    plt.xlabel("Iterations", fontsize=14)
+    plt.ylabel(ylabel, fontsize=14)
     # plt.ylim(1e-7, 1e2)
-    plt.title(title)  # , fontsize=18)
+    plt.title(title, fontsize=16)
     plt.legend()  # fontsize=16)
     plt.tight_layout()
     if outpath:
@@ -251,7 +251,7 @@ if __name__ == "__main__":
         q75s,
         labels,
         "Convergence Comparison (median ± IQR)",
-        ylabel="Avg. Objective Value",
+        ylabel="Objective Value",
         outpath=f"convergence_plot/{filename}_quartiles_seed{SEED}.pdf",
     )
 
@@ -265,7 +265,7 @@ plot_with_quartiles(
     q75s,
     labels,
     "Convergence Comparison (median ± IQR)",
-    ylabel="Avg. Objective Value",
+    ylabel="Objective Value",
     outpath=f"convergence_plot/{filename}_quartiles_seed{SEED}.pdf",
 )
 
