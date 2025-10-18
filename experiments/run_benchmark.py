@@ -40,10 +40,12 @@ def execute_benchmark(
 
     if function_id == 0:
         objective = sphere
+        directions = ["minimize"]
     else:
         objective = BBOB.Problem(
             function_id=function_id, dimension=dimension, instance_id=1
         )
+        directions = objective.directions
     sampler = BatchedSampler(mode=mode, seed=seed)
 
     short_mode = {
@@ -60,9 +62,7 @@ def execute_benchmark(
 
     storage = JournalStorage(JournalFileBackend(os.path.join(output_dir, log_file)))
 
-    study = optuna.create_study(
-        directions=objective.directions, sampler=sampler, storage=storage
-    )
+    study = optuna.create_study(directions=directions, sampler=sampler, storage=storage)
 
     study.optimize(objective, n_trials=n_trials)
 
