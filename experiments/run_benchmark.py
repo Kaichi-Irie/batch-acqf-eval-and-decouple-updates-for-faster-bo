@@ -32,9 +32,18 @@ def execute_benchmark(
     output_dir="results",
     skip_if_exists=True,
 ):
-    objective = BBOB.Problem(
-        function_id=function_id, dimension=dimension, instance_id=1
-    )
+    def sphere(trial: optuna.trial.Trial) -> float:
+        x = np.array(
+            [trial.suggest_float(f"x{i}", -5.0, 5.0) for i in range(dimension)]
+        )
+        return np.sum(x**2)
+
+    if function_id == 0:
+        objective = sphere
+    else:
+        objective = BBOB.Problem(
+            function_id=function_id, dimension=dimension, instance_id=1
+        )
     sampler = BatchedSampler(mode=mode, seed=seed)
 
     short_mode = {
@@ -121,7 +130,7 @@ def parse():
     parser.add_argument(
         "--function_id",
         type=int,
-        help="List of BBOB function IDs (1-24)",
+        help="List of BBOB function IDs (1-24) or 0 for original sphere function",
     )
     parser.add_argument(
         "--dimension",
