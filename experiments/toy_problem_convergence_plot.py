@@ -1,3 +1,4 @@
+import argparse
 import itertools
 import math
 import os
@@ -16,27 +17,47 @@ from src.convergence_plot import (
 
 np.random.seed(42)
 
-DIMENSION = 5
-MEMORY_SIZE = 10
+
+def parse():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        help="Directory to save the output plots.",
+    )
+    parser.add_argument(
+        "--dimension",
+        type=int,
+        default=5,
+        help="Dimensionality of the problem.",
+    )
+    parser.add_argument(
+        "--method",
+        type=str,
+        choices=["L-BFGS-B", "BFGS"],
+        default="L-BFGS-B",
+        help="Optimization method to use.",
+    )
+    parser.add_argument(
+        "--n_seeds",
+        type=int,
+        default=100,
+        help="Number of random seeds to average over.",
+    )
+    return parser.parse_args()
+
+
 LB, UB = (0, 3)
-BOUNDS = [(LB, UB)] * DIMENSION
-METHOD = "L-BFGS-B"  # "L-BFGS-B" or "BFGS"
-if METHOD == "BFGS":
-    MEMORY_SIZE = None
-    BOUNDS = None
-
 OBJ_NAME = "Rosenbrock"
-OUTPUT_DIR = "results_tmp/convergence_plot"
-N_SEEDS = 100
-
 BATCH_SIZES = [1, 2, 5, 10]
-MEMORY_SIZES = [None]  # Only for L-BFGS-B, we can vary memory size
-
+MEMORY_SIZES = [10]  # Only for L-BFGS-B, we can vary memory size
+INCLUDE_MEMORY_SIZE_TO_LABEL = False
 if __name__ == "__main__":
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    x_min = get_rosen_minimum(DIMENSION)
+    args = parse()
+    os.makedirs(args.output_dir, exist_ok=True)
+    x_min = get_rosen_minimum(args.dimension)
     random_initial_points = np.random.uniform(
-        LB, UB, size=(math.lcm(*BATCH_SIZES) * N_SEEDS, DIMENSION)
+        LB, UB, size=(math.lcm(*BATCH_SIZES) * args.n_seeds, args.dimension)
     )
     # means = []
     # stds = []
@@ -49,13 +70,15 @@ if __name__ == "__main__":
         print(
             f"Running experiments with batch size={batch_size}, memory size={memory_size}"
         )
-        random_initial_points = random_initial_points.reshape(-1, batch_size, DIMENSION)
+        random_initial_points = random_initial_points.reshape(
+            -1, batch_size, args.dimension
+        )
         assert random_initial_points.ndim == 3
 
         random_seed_histories = []
         for xs0 in random_initial_points:
             res, hist = run_cbe_with_history(
-                xs0, METHOD, LB, UB, memory_size=memory_size
+                xs0, args.method, LB, UB, memory_size=memory_size
             )
             hist = calculate_average_per_batch(hist, batch_size)
             random_seed_histories.append(hist)
@@ -65,14 +88,14 @@ if __name__ == "__main__":
         q50s.append(q50)
         q75s.append(q75)
         label = (
-            f"$B={batch_size}$"
-            if memory_size is None
-            else f"$B={batch_size}$, $M={memory_size}$"
+            f"$B={batch_size}$, $M={memory_size}$"
+            if INCLUDE_MEMORY_SIZE_TO_LABEL
+            else f"$B={batch_size}$"
         )
         labels.append(label)
 
-    filename = f"convergence_{OBJ_NAME}_{METHOD}_D{DIMENSION}"
-    filename += f"_UB{UB}_LB{LB}_M{MEMORY_SIZE}" if METHOD == "L-BFGS-B" else ""
+    filename = f"convergence_{OBJ_NAME}_{args.method}_D{args.dimension}"
+    filename += f"_UB{UB}_LB{LB}" if args.method == "L-BFGS-B" else ""
     plot_with_quartiles(
         q25s,
         q50s,
@@ -80,5 +103,5 @@ if __name__ == "__main__":
         labels,
         "Convergence Comparison (median ± IQR)",
         ylabel="Objective Value",
-        outpath=os.path.join(OUTPUT_DIR, f"{filename}.pdf"),
+        outpath=os.path.join(args.output_dir, f"{filename}.pdf"),
     )

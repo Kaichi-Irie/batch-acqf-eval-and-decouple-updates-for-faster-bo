@@ -1,3 +1,4 @@
+import argparse
 import os
 import sys
 
@@ -15,30 +16,66 @@ from src.hess_plot import (
     true_hess_inv_block,
 )
 
-RNG_SEED = 4
-BATCH_SIZE = 3
-DIMENSION = 5
+
+def parse():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        help="Directory to save the output plots.",
+    )
+    parser.add_argument(
+        "--method",
+        type=str,
+        choices=["L-BFGS-B", "BFGS"],
+        default="L-BFGS-B",
+        help="Optimization method to use.",
+    )
+    parser.add_argument(
+        "--dimension",
+        type=int,
+        default=5,
+        help="Dimensionality of the problem.",
+    )
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=3,
+        help="Batch size for the optimization.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=4,
+        help="Random seed for initialization.",
+    )
+    return parser.parse_args()
+
+
 LB, UB = 0.0, 3.0
-METHOD = "L-BFGS-B"  # "L-BFGS-B" or "BFGS"
 OBJ_NAME = "Rosenbrock"
-OUTPUT_DIR = "results_tmp/hessian_comparison"
-SUFFIX = f"{OBJ_NAME}_{METHOD}_B{BATCH_SIZE}_D{DIMENSION}_seed{RNG_SEED}"
-np.random.seed(RNG_SEED)
 
 if __name__ == "__main__":
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    xs0 = np.random.uniform(LB, UB, size=(BATCH_SIZE, DIMENSION))
-    x_min = get_rosen_minimum(DIMENSION)
+    args = parse()
+    np.random.seed(args.seed)
+    os.makedirs(args.output_dir, exist_ok=True)
+    suffix = (
+        f"{OBJ_NAME}_{args.method}_B{args.batch_size}_D{args.dimension}_seed{args.seed}"
+    )
+    xs0 = np.random.uniform(LB, UB, size=(args.batch_size, args.dimension))
+    x_min = get_rosen_minimum(args.dimension)
 
     # --- Coupled Batched Evaluation ---
-    res_cbe = run_coupled_batch_evaluation(xs0, METHOD, LB, UB, BATCH_SIZE, DIMENSION)
-    assert np.allclose(res_cbe.x, np.tile(x_min, BATCH_SIZE), atol=1e-2)
+    res_cbe = run_coupled_batch_evaluation(
+        xs0, args.method, LB, UB, args.batch_size, args.dimension
+    )
+    assert np.allclose(res_cbe.x, np.tile(x_min, args.batch_size), atol=1e-2)
 
-    _, Hinv_cbe = hess_and_hess_inv_from_result(res_cbe, METHOD)
+    _, Hinv_cbe = hess_and_hess_inv_from_result(res_cbe, args.method)
 
     # --- Sequential ---
-    results_seq = run_sequential_optimization(xs0, METHOD, LB, UB)
-    _, Hinv_seq = make_block_hess_and_hess_inv(results_seq, METHOD)
+    results_seq = run_sequential_optimization(xs0, args.method, LB, UB)
+    _, Hinv_seq = make_block_hess_and_hess_inv(results_seq, args.method)
 
     pts_seq = np.vstack([r.x for r in results_seq])
     Hinv_true_seq = true_hess_inv_block(pts_seq)
@@ -58,6 +95,6 @@ if __name__ == "__main__":
         Hinv_cbe,
         titles=("(a) True", "(b) Seq. Opt.", "(c) C-BE"),
         out_pdf_path=os.path.join(
-            OUTPUT_DIR, f"hessian_inv_comparison_triplet_{SUFFIX}.pdf"
+            args.output_dir, f"hessian_inv_comparison_triplet_{suffix}.pdf"
         ),
     )

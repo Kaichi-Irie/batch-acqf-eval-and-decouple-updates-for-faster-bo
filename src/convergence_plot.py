@@ -17,11 +17,7 @@ plt.rcParams["font.family"] = "Times New Roman"  # Fonts
 
 
 def run_cbe_with_history(
-    xs0: np.ndarray,
-    method: str,
-    lb: float,
-    ub: float,
-    memory_size: int | None = None,
+    xs0: np.ndarray, method: str, lb: float, ub: float, memory_size: int = 10
 ) -> tuple[Any, list[float]]:
     assert xs0.ndim == 2
     batch_size, dim = xs0.shape
@@ -36,7 +32,7 @@ def run_cbe_with_history(
             fprime=g,
             bounds=[(lb, ub)] * (batch_size * dim) if method == "L-BFGS-B" else None,
             callback=lambda xk: history.append(f(xk)),
-            m=memory_size if memory_size is not None else 10,
+            m=memory_size,
         )
         return res, history
     elif method == "BFGS":
