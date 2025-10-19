@@ -178,12 +178,12 @@ def plot_hessian_triplet(
     mats = [H_true, H_approx_a, H_approx_b]
     panel_titles = [
         titles[0],
-        f"{titles[1]}\n($e_{{rel}}={rel_a:.2f}$)"
+        f"{titles[1]}\n($e_\\mathrm{{rel}}={rel_a:.2f}$)"
         if np.isfinite(rel_a)
-        else f"{titles[1]}\n($e_{{rel}}=$n/a)",
-        f"{titles[2]}\n($e_{{rel}}={rel_b:.2f}$)"
+        else f"{titles[1]}\n($e_\\mathrm{{rel}}=$n/a)",
+        f"{titles[2]}\n($e_\\mathrm{{rel}}={rel_b:.2f}$)"
         if np.isfinite(rel_b)
-        else f"{titles[2]}\n($e_{{rel}}=$n/a)",
+        else f"{titles[2]}\n($e_\\mathrm{{rel}}=$n/a)",
     ]
 
     images = []
