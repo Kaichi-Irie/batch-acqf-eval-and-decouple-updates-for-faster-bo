@@ -9,7 +9,7 @@ N=$(wc -l < params.tsv)
 echo "Total experiments: $N"
 
 
-for  i in $(seq 1 $N); do
+for i in $(seq 1 $N); do
     read -r N_SEEDS FID DIM N_TRIALS < <(sed -n "${i}p" params.tsv)
     echo "N_SEEDS=${N_SEEDS}, FID=${FID}, DIM=${DIM}, N_TRIALS=${N_TRIALS}"
     python experiments/run_benchmark.py \
@@ -22,3 +22,6 @@ for  i in $(seq 1 $N); do
     --results_file results.jsonl \
     --skip_if_exists
 done
+
+# remove params.tsv
+rm params.tsv

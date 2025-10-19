@@ -53,14 +53,16 @@ def execute_benchmark(
         "decoupled_batch_evaluation": "dbe",
         "coupled_batch_evaluation": "cbe",
     }[mode]
+    log_dir = os.path.join(output_dir, "logs")
+    os.makedirs(log_dir, exist_ok=True)
     log_file = (
         f"f{function_id}_{dimension}D_seed{seed}_{short_mode}_{n_trials}_trials.jsonl"
     )
-    if skip_if_exists and os.path.exists(os.path.join(output_dir, log_file)):
+    if skip_if_exists and os.path.exists(os.path.join(log_dir, log_file)):
         print(f"Skip existing: {log_file}")
         return
 
-    storage = JournalStorage(JournalFileBackend(os.path.join(output_dir, log_file)))
+    storage = JournalStorage(JournalFileBackend(os.path.join(log_dir, log_file)))
 
     study = optuna.create_study(directions=directions, sampler=sampler, storage=storage)
 
@@ -115,7 +117,7 @@ def execute_benchmark(
             iteration_info[k].append(v)
 
     # save as JSONL
-    with open(os.path.join(output_dir, "iterinfo_" + log_file), "w") as f:
+    with open(os.path.join(log_dir, "iterinfo_" + log_file), "w") as f:
         f.write(json.dumps(iteration_info) + "\n")
 
 
