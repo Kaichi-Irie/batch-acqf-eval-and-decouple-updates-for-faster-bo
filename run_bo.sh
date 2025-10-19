@@ -1,6 +1,6 @@
 #!/bin/bash
 
-OUTPUTDIR="results_tmp"
+OUTPUTDIR="results"
 source venv/bin/activate
 python experiments/make_params.py \
     --config config.yaml \
