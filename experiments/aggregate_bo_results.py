@@ -1,7 +1,10 @@
 import argparse
 import os
+import sys
 
 import pandas as pd
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def parse():
@@ -120,36 +123,34 @@ def aggregate_bo_results(input_file: str, output_dir: str, results_file: str) ->
             "mode",
             # "best_value_mean",
             # "best_value_std",
-            # "best_value_median",
-            # "best_value_q1",
-            # "best_value_q3",
+            "best_value_median",
+            "best_value_q1",
+            "best_value_q3",
             # "acqf_opt_time_mean",
             # "acqf_opt_time_std",
-            # "acqf_opt_time_median",
-            # "acqf_opt_time_q1",
-            # "acqf_opt_time_q3",
+            "acqf_opt_time_median",
+            "acqf_opt_time_q1",
+            "acqf_opt_time_q3",
             # "avg_nits_mean",
             # "avg_nits_std",
-            # "med_nits_median",
-            # "med_nits_q1",
-            # "med_nits_q3",
+            "med_nits_median",
+            "med_nits_q1",
+            "med_nits_q3",
             # "mean_speedup",
             # "median_speedup",
-            "Best Value (mean ± std.)",
-            "Best Value (median [IQR])",
-            "Acq. Opt. (sec, mean ± std.)",
-            "Acq. Opt. (sec, median [IQR])",
-            "Avg. Iters (mean ± std.)",
-            "Avg. Iters (median [IQR])",
+            # "Best Value (mean ± std.)",
+            # "Best Value (median [IQR])",
+            # "Acq. Opt. (sec, mean ± std.)",
+            # "Acq. Opt. (sec, median [IQR])",
+            # "Avg. Iters (mean ± std.)",
+            # "Avg. Iters (median [IQR])",
         ]
     ].rename(columns={"mode": "Method"})
 
     output_df.to_csv(
-        os.path.join(output_dir, results_file),
-        index=False,
-        encoding="utf-8-sig",
-        mode="w",
+        os.path.join(output_dir, results_file), index=False, encoding="utf-8-sig"
     )
+    print("Saved aggregated results to:", os.path.join(output_dir, results_file))
     print(output_df.to_string(index=False))
 
 

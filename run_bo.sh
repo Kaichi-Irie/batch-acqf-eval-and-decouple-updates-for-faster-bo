@@ -1,5 +1,6 @@
 #!/bin/bash
 
+OUTPUTDIR="results_tmp"
 source venv/bin/activate
 python experiments/make_params.py \
     --config config.yaml \
@@ -18,10 +19,15 @@ for i in $(seq 1 $N); do
     --n_seeds "${N_SEEDS}" \
     --mode "all" \
     --n_trials "${N_TRIALS}" \
-    --output_dir results_tmp \
+    --output_dir "${OUTPUTDIR}" \
     --results_file results.jsonl \
     --skip_if_exists
 done
 
 # remove params.tsv
 rm params.tsv
+
+python experiments/aggregate_bo_results.py \
+    --input results_tmp/results.jsonl \
+    --output_dir "${OUTPUTDIR}" \
+    --results_file bo_benchmark_results.csv
