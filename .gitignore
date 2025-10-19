@@ -208,9 +208,6 @@ __marimo__/
 
 #
 .DS_Store
-tmp*
-*.jsonl
 *.csv
 *.tsv
-*.pdf
 *.png
