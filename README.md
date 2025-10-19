@@ -6,7 +6,7 @@ Recommended Python version: 3.12
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-chmod +x run_rosenbrock_opt.sh
+chmod +x run_toy_opt.sh
 chmod +x run_bo.sh
 ```
 
