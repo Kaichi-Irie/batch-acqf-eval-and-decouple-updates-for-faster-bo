@@ -1,12 +1,27 @@
-# %%
 import argparse
+import os
 
 import pandas as pd
 
 
-def aggregate_bo_results(
-    input_file: str, output_file: str, should_append: bool
-) -> None:
+def parse():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--input", type=str, default="results/results.jsonl", help="Input JSONL file"
+    )
+    parser.add_argument(
+        "--output_dir", type=str, default="results", help="Directory to save results"
+    )
+    parser.add_argument(
+        "--results_file",
+        type=str,
+        default="bo_benchmark_results.csv",
+        help="Output CSV file",
+    )
+    return parser.parse_args()
+
+
+def aggregate_bo_results(input_file: str, output_dir: str, results_file: str) -> None:
     with open(input_file, "r") as f:
         df = pd.read_json(f, lines=True)
 
@@ -16,7 +31,7 @@ def aggregate_bo_results(
             "The current code will aggregate only by mode without distinguishing these."
         )
 
-    summary = (
+    results = (
         df.groupby(["function_id", "dimension", "mode"])
         .agg(
             best_value_mean=("best_value", lambda x: f"{x.mean():.2e}"),
@@ -37,58 +52,58 @@ def aggregate_bo_results(
         )
         .reset_index()
     )
-    summary = summary.fillna(0)
+    results = results.fillna(0)
 
-    summary["Best Value (mean ± std.)"] = summary.apply(
+    results["Best Value (mean ± std.)"] = results.apply(
         lambda row: f"{row['best_value_mean']} ± {row['best_value_std']}",
         axis=1,
     )
-    summary["Best Value (median [IQR])"] = summary.apply(
+    results["Best Value (median [IQR])"] = results.apply(
         lambda row: f"{row['best_value_median']} [{row['best_value_q1']}, {row['best_value_q3']}]",
         axis=1,
     )
-    summary["Acq. Opt. (sec, mean ± std.)"] = summary.apply(
+    results["Acq. Opt. (sec, mean ± std.)"] = results.apply(
         lambda row: f"{row['acqf_opt_time_mean']} ± {row['acqf_opt_time_std']}",
         axis=1,
     )
-    summary["Acq. Opt. (sec, median [IQR])"] = summary.apply(
+    results["Acq. Opt. (sec, median [IQR])"] = results.apply(
         lambda row: f"{row['acqf_opt_time_median']} [{row['acqf_opt_time_q1']}, {row['acqf_opt_time_q3']}]",
         axis=1,
     )
-    summary["Avg. Iters (mean ± std.)"] = summary.apply(
+    results["Avg. Iters (mean ± std.)"] = results.apply(
         lambda row: f"{row['avg_nits_mean']} ± {row['avg_nits_std']}", axis=1
     )
-    summary["Avg. Iters (median [IQR])"] = summary.apply(
+    results["Avg. Iters (median [IQR])"] = results.apply(
         lambda row: f"{row['med_nits_median']} [{row['med_nits_q1']}, {row['med_nits_q3']}]",
         axis=1,
     )
     # speedup = original_mode_time / proposed_mode_time
     # must cast str to float for division
-    summary[["acqf_opt_time_mean", "acqf_opt_time_median"]] = summary[
+    results[["acqf_opt_time_mean", "acqf_opt_time_median"]] = results[
         ["acqf_opt_time_mean", "acqf_opt_time_median"]
     ].astype(float)
-    summary["mean_speedup"] = summary.apply(
-        lambda row: summary[
-            (summary["function_id"] == row["function_id"])
-            & (summary["dimension"] == row["dimension"])
-            & (summary["mode"] == "original")
+    results["mean_speedup"] = results.apply(
+        lambda row: results[
+            (results["function_id"] == row["function_id"])
+            & (results["dimension"] == row["dimension"])
+            & (results["mode"] == "original")
         ]["acqf_opt_time_mean"].values[0]
         / row["acqf_opt_time_mean"],
         axis=1,
     )
 
-    summary["median_speedup"] = summary.apply(
-        lambda row: summary[
-            (summary["function_id"] == row["function_id"])
-            & (summary["dimension"] == row["dimension"])
-            & (summary["mode"] == "original")
+    results["median_speedup"] = results.apply(
+        lambda row: results[
+            (results["function_id"] == row["function_id"])
+            & (results["dimension"] == row["dimension"])
+            & (results["mode"] == "original")
         ]["acqf_opt_time_median"].values[0]
         / row["acqf_opt_time_median"],
         axis=1,
     )
     # sort modes in the order of 'original', 'coupled_batch_evaluation', 'decoupled_batch_evaluation'
-    summary["mode"] = pd.Categorical(
-        summary["mode"],
+    results["mode"] = pd.Categorical(
+        results["mode"],
         categories=[
             "original",
             "coupled_batch_evaluation",
@@ -96,9 +111,9 @@ def aggregate_bo_results(
         ],
         ordered=True,
     )
-    summary = summary.sort_values(by=["function_id", "dimension", "mode"])
+    results = results.sort_values(by=["function_id", "dimension", "mode"])
 
-    output_df = summary[
+    output_df = results[
         [
             "function_id",
             "dimension",
@@ -130,29 +145,19 @@ def aggregate_bo_results(
     ].rename(columns={"mode": "Method"})
 
     output_df.to_csv(
-        output_file,
+        os.path.join(output_dir, results_file),
         index=False,
         encoding="utf-8-sig",
-        mode="a" if should_append else "w",
+        mode="w",
     )
     print(output_df.to_string(index=False))
 
 
-# %%
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--input", type=str, default="results/summary.jsonl", help="Input JSONL file"
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        default="aggregated_bench_stats.csv",
-        help="Output CSV file",
-    )
-    parser.add_argument(
-        "--append", action="store_true", help="Append to the output file if it exists"
-    )
-    args = parser.parse_args()
+    args = parse()
     print("Aggregating BO results...")
-    aggregate_bo_results(args.input, args.output, args.append)
+    aggregate_bo_results(
+        input_file=args.input,
+        output_dir=args.output_dir,
+        results_file=args.results_file,
+    )
