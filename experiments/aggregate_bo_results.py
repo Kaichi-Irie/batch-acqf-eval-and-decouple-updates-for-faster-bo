@@ -19,50 +19,54 @@ def aggregate_bo_results(
     summary = (
         df.groupby(["function_id", "dimension", "mode"])
         .agg(
-            best_value_mean=("best_value", "mean"),
-            best_value_std=("best_value", "std"),
-            best_value_median=("best_value", "median"),
-            best_value_q1=("best_value", lambda x: x.quantile(0.25)),
-            best_value_q3=("best_value", lambda x: x.quantile(0.75)),
-            acqf_opt_time_mean=("elapsed_acqf_opt", "mean"),
-            acqf_opt_time_std=("elapsed_acqf_opt", "std"),
-            acqf_opt_time_median=("elapsed_acqf_opt", "median"),
-            acqf_opt_time_q1=("elapsed_acqf_opt", lambda x: x.quantile(0.25)),
-            acqf_opt_time_q3=("elapsed_acqf_opt", lambda x: x.quantile(0.75)),
-            avg_nits_mean=("n_iter_mean", "mean"),
-            avg_nits_std=("n_iter_mean", "std"),
-            med_nits_median=("n_iter_median", "median"),
-            med_nits_q1=("n_iter_median", lambda x: x.quantile(0.25)),
-            med_nits_q3=("n_iter_median", lambda x: x.quantile(0.75)),
+            best_value_mean=("best_value", lambda x: f"{x.mean():.2e}"),
+            best_value_std=("best_value", lambda x: f"{x.std():.2e}"),
+            best_value_median=("best_value", lambda x: f"{x.median():.2e}"),
+            best_value_q1=("best_value", lambda x: f"{x.quantile(0.25):.2e}"),
+            best_value_q3=("best_value", lambda x: f"{x.quantile(0.75):.2e}"),
+            acqf_opt_time_mean=("elapsed_acqf_opt", lambda x: f"{x.mean():.1f}"),
+            acqf_opt_time_std=("elapsed_acqf_opt", lambda x: f"{x.std():.1f}"),
+            acqf_opt_time_median=("elapsed_acqf_opt", lambda x: f"{x.median():.1f}"),
+            acqf_opt_time_q1=("elapsed_acqf_opt", lambda x: f"{x.quantile(0.25):.1f}"),
+            acqf_opt_time_q3=("elapsed_acqf_opt", lambda x: f"{x.quantile(0.75):.1f}"),
+            avg_nits_mean=("n_iter_mean", lambda x: f"{x.mean():.1f}"),
+            avg_nits_std=("n_iter_mean", lambda x: f"{x.std():.1f}"),
+            med_nits_median=("n_iter_median", lambda x: f"{x.median():.1f}"),
+            med_nits_q1=("n_iter_median", lambda x: f"{x.quantile(0.25):.1f}"),
+            med_nits_q3=("n_iter_median", lambda x: f"{x.quantile(0.75):.1f}"),
         )
         .reset_index()
     )
     summary = summary.fillna(0)
 
     summary["Best Value (mean ± std.)"] = summary.apply(
-        lambda row: f"{row['best_value_mean']:.2f} ± {row['best_value_std']:.2f}",
+        lambda row: f"{row['best_value_mean']} ± {row['best_value_std']}",
         axis=1,
     )
     summary["Best Value (median [IQR])"] = summary.apply(
-        lambda row: f"{row['best_value_median']:.2f} [{row['best_value_q1']:.2f}, {row['best_value_q3']:.2f}]",
+        lambda row: f"{row['best_value_median']} [{row['best_value_q1']}, {row['best_value_q3']}]",
         axis=1,
     )
     summary["Acq. Opt. (sec, mean ± std.)"] = summary.apply(
-        lambda row: f"{row['acqf_opt_time_mean']:.2f} ± {row['acqf_opt_time_std']:.2f}",
+        lambda row: f"{row['acqf_opt_time_mean']} ± {row['acqf_opt_time_std']}",
         axis=1,
     )
     summary["Acq. Opt. (sec, median [IQR])"] = summary.apply(
-        lambda row: f"{row['acqf_opt_time_median']:.2f} [{row['acqf_opt_time_q1']:.2f}, {row['acqf_opt_time_q3']:.2f}]",
+        lambda row: f"{row['acqf_opt_time_median']} [{row['acqf_opt_time_q1']}, {row['acqf_opt_time_q3']}]",
         axis=1,
     )
     summary["Avg. Iters (mean ± std.)"] = summary.apply(
-        lambda row: f"{row['avg_nits_mean']:.2f} ± {row['avg_nits_std']:.2f}", axis=1
+        lambda row: f"{row['avg_nits_mean']} ± {row['avg_nits_std']}", axis=1
     )
     summary["Avg. Iters (median [IQR])"] = summary.apply(
-        lambda row: f"{row['med_nits_median']:.2f} [{row['med_nits_q1']:.2f}, {row['med_nits_q3']:.2f}]",
+        lambda row: f"{row['med_nits_median']} [{row['med_nits_q1']}, {row['med_nits_q3']}]",
         axis=1,
     )
     # speedup = original_mode_time / proposed_mode_time
+    # must cast str to float for division
+    summary[["acqf_opt_time_mean", "acqf_opt_time_median"]] = summary[
+        ["acqf_opt_time_mean", "acqf_opt_time_median"]
+    ].astype(float)
     summary["mean_speedup"] = summary.apply(
         lambda row: summary[
             (summary["function_id"] == row["function_id"])
