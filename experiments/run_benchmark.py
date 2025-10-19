@@ -28,7 +28,7 @@ def execute_benchmark(
     mode: SAMPLERMODE,
     n_trials,
     seed,
-    results_file="summary.jsonl",
+    results_file="results.jsonl",
     output_dir="results",
     skip_if_exists=True,
 ):
@@ -78,7 +78,7 @@ def execute_benchmark(
         elapsed = -1.0
         print(f"{mode} took unknown seconds. ")
 
-    summary = {
+    result = {
         "function_id": function_id,
         "dimension": dimension,
         "seed": seed,
@@ -94,7 +94,7 @@ def execute_benchmark(
     results_file_path = os.path.join(output_dir, results_file)
     if not sampler.nit_stats_list:
         with open(results_file_path, "a") as f:
-            f.write(json.dumps(summary) + "\n")
+            f.write(json.dumps(result) + "\n")
         return
 
     # first 10 trials are warm-up
@@ -105,10 +105,10 @@ def execute_benchmark(
     for nit_stat in sampler.nit_stats_list:
         medians.append(nit_stat["q2"])
         means.append(nit_stat["mean"])
-    summary["n_iter_median"] = float(np.median(medians))
-    summary["n_iter_mean"] = float(np.mean(means))
+    result["n_iter_median"] = float(np.median(medians))
+    result["n_iter_mean"] = float(np.mean(means))
     with open(results_file_path, "a") as f:
-        f.write(json.dumps(summary) + "\n")
+        f.write(json.dumps(result) + "\n")
 
     # save iteration info
     iteration_info = defaultdict(list)
@@ -158,8 +158,8 @@ def parse():
     parser.add_argument(
         "--results_file",
         type=str,
-        default="summary.jsonl",
-        help="Summary file name",
+        default="results.jsonl",
+        help="Results file name",
     )
     parser.add_argument(
         "--output_dir",
