@@ -28,6 +28,6 @@ done
 rm params.tsv
 
 python experiments/aggregate_bo_results.py \
-    --input results_tmp/results.jsonl \
+    --input "${OUTPUTDIR}/results.jsonl" \
     --output_dir "${OUTPUTDIR}" \
     --results_file bo_benchmark_results.csv
