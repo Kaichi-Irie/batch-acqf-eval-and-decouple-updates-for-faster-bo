@@ -151,14 +151,17 @@ def plot_with_quartiles(
         x = np.arange(len(q50))
         plt.plot(x, q50, label=label)
         plt.fill_between(x, q25, q75, alpha=0.1)
+        if len(x) > 225:
+            plt.xlim(0, 225)
 
     plt.yscale("log")
     plt.grid(True, which="both", linestyle="--", linewidth=0.5)
     plt.xlabel("Iterations", fontsize=14)
     plt.ylabel(ylabel, fontsize=14)
+    # if n_iterations is more than 200, set xlim
     # plt.ylim(1e-7, 1e2)
     plt.title(title, fontsize=16)
-    plt.legend()  # fontsize=16)
+    plt.legend()
     plt.tight_layout()
     if outpath:
         plt.savefig(outpath)
