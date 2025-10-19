@@ -23,5 +23,5 @@ python experiments/run_benchmark.py \
   --mode "all" \
   --n_trials "${N_TRIALS}" \
   --output_dir results \
-  --summary_file summary_f"${FID}"_"${DIM}"D.jsonl \
+  --results_file summary_f"${FID}"_"${DIM}"D.jsonl \
   --skip_if_exists

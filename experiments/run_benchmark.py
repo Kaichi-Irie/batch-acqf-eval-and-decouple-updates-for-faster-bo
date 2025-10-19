@@ -28,7 +28,7 @@ def execute_benchmark(
     mode: SAMPLERMODE,
     n_trials,
     seed,
-    summary_file="summary.jsonl",
+    results_file="summary.jsonl",
     output_dir="results",
     skip_if_exists=True,
 ):
@@ -89,9 +89,9 @@ def execute_benchmark(
         "n_iter_mean": None,
     }
 
-    summary_file_path = os.path.join(output_dir, summary_file)
+    results_file_path = os.path.join(output_dir, results_file)
     if not sampler.nit_stats_list:
-        with open(summary_file_path, "a") as f:
+        with open(results_file_path, "a") as f:
             f.write(json.dumps(summary) + "\n")
         return
 
@@ -105,7 +105,7 @@ def execute_benchmark(
         means.append(nit_stat["mean"])
     summary["n_iter_median"] = float(np.median(medians))
     summary["n_iter_mean"] = float(np.mean(means))
-    with open(summary_file_path, "a") as f:
+    with open(results_file_path, "a") as f:
         f.write(json.dumps(summary) + "\n")
 
     # save iteration info
@@ -154,7 +154,7 @@ def parse():
         help="Number of trials per run",
     )
     parser.add_argument(
-        "--summary_file",
+        "--results_file",
         type=str,
         default="summary.jsonl",
         help="Summary file name",
@@ -192,7 +192,7 @@ if __name__ == "__main__":
             mode=mode,  # type: ignore[arg-type]
             n_trials=args.n_trials,
             seed=seed,
-            summary_file=args.summary_file,
+            results_file=args.results_file,
             output_dir=args.output_dir,
             skip_if_exists=args.skip_if_exists,
         )

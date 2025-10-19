@@ -14,7 +14,7 @@ def create_objective(
     modes,
     seeds,
     n_trials,
-    summary_file,
+    results_file,
     output_dir,
     skip_if_exists,
 ):
@@ -27,7 +27,7 @@ def create_objective(
             mode=mode,
             n_trials=n_trials,
             seed=seed,
-            summary_file=summary_file,
+            results_file=results_file,
             output_dir=output_dir,
             skip_if_exists=skip_if_exists,
         )
@@ -67,7 +67,7 @@ if __name__ == "__main__":
         modes=modes,
         seeds=seeds,
         n_trials=args.n_trials,
-        summary_file=args.summary_file,
+        results_file=args.results_file,
         output_dir=args.output_dir,
         skip_if_exists=args.skip_if_exists,
     )
