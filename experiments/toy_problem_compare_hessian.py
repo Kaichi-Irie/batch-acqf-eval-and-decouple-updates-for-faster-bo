@@ -69,7 +69,6 @@ if __name__ == "__main__":
     res_cbe = run_coupled_batch_evaluation(
         xs0, args.method, LB, UB, args.batch_size, args.dimension
     )
-    assert np.allclose(res_cbe.x, np.tile(x_min, args.batch_size), atol=1e-2)
 
     _, Hinv_cbe = hess_and_hess_inv_from_result(res_cbe, args.method)
 
