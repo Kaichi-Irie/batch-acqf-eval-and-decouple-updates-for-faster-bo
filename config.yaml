@@ -1,0 +1,4 @@
+N_TRIALS: 30 # Number of trials for each run
+n_seeds: 2 # Random seed (used seeds: 0 - n_seeds-1)
+function_ids: [0, 1] # BBOB function ID (1-24) or 0 for original sphere function
+dimensions: [2, 3] # BBOB problem dimension (2, 3, 5, 10, 20, 40)

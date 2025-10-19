@@ -1,13 +1,24 @@
-# make_params.py
+import argparse
 from itertools import product
 
-N_TRIALS = 300  # Number of trials for each run
-n_seeds = 2  # Random seed (used seeds: 0 - n_seeds-1)
-function_ids = [6]  # BBOB function ID (1-24) or 0 for original sphere function
-dimensions = [40]  # BBOB problem dimension (2, 3, 5, 10, 20, 40)
+import yaml
 
-with open("params.tsv", "w") as f:
-    for fid, dim in product(function_ids, dimensions):
-        f.write(f"{n_seeds}\t{fid}\t{dim}\t{N_TRIALS}\n")
-print("Parameters saved to params.tsv")
-print("Total runs:", n_seeds * len(function_ids) * len(dimensions))
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", default="config.yaml")
+    parser.add_argument("--output", default="params.tsv")
+    args = parser.parse_args()
+
+    # read from config.yaml
+    with open(args.config, "r") as f:
+        config = yaml.safe_load(f)
+
+    N_TRIALS = config["N_TRIALS"]
+    n_seeds = config["n_seeds"]
+    function_ids = config["function_ids"]
+    dimensions = config["dimensions"]
+
+    with open(args.output, "w") as f:
+        for fid, dim in product(function_ids, dimensions):
+            f.write(f"{n_seeds}\t{fid}\t{dim}\t{N_TRIALS}\n")
+    print("Parameters saved to", args.output)
