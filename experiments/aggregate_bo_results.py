@@ -82,9 +82,22 @@ def aggregate_bo_results(input_file: str, output_dir: str, results_file: str) ->
     )
     # speedup = original_mode_time / proposed_mode_time
     # must cast str to float for division
-    results[["acqf_opt_time_mean", "acqf_opt_time_median"]] = results[
-        ["acqf_opt_time_mean", "acqf_opt_time_median"]
+    results[
+        [
+            "acqf_opt_time_mean",
+            "acqf_opt_time_median",
+            "med_nits_median",
+            "best_value_median",
+        ]
+    ] = results[
+        [
+            "acqf_opt_time_mean",
+            "acqf_opt_time_median",
+            "med_nits_median",
+            "best_value_median",
+        ]
     ].astype(float)
+
     results["mean_speedup"] = results.apply(
         lambda row: results[
             (results["function_id"] == row["function_id"])
@@ -95,15 +108,36 @@ def aggregate_bo_results(input_file: str, output_dir: str, results_file: str) ->
         axis=1,
     )
 
-    results["median_speedup"] = results.apply(
-        lambda row: results[
+    results["time_ratio_to_seqopt"] = results.apply(
+        lambda row: row["acqf_opt_time_median"]
+        / results[
             (results["function_id"] == row["function_id"])
             & (results["dimension"] == row["dimension"])
             & (results["mode"] == "original")
-        ]["acqf_opt_time_median"].values[0]
-        / row["acqf_opt_time_median"],
+        ]["acqf_opt_time_median"].values[0],
         axis=1,
     )
+
+    results["iter_ratio_to_seqopt"] = results.apply(
+        lambda row: row["med_nits_median"]
+        / results[
+            (results["function_id"] == row["function_id"])
+            & (results["dimension"] == row["dimension"])
+            & (results["mode"] == "original")
+        ]["med_nits_median"].values[0],
+        axis=1,
+    )
+
+    results["best_value_ratio_to_seqopt"] = results.apply(
+        lambda row: row["best_value_median"]
+        / results[
+            (results["function_id"] == row["function_id"])
+            & (results["dimension"] == row["dimension"])
+            & (results["mode"] == "original")
+        ]["best_value_median"].values[0],
+        axis=1,
+    )
+
     # sort modes in the order of 'original', 'coupled_batch_evaluation', 'decoupled_batch_evaluation'
     results["mode"] = pd.Categorical(
         results["mode"],
@@ -124,20 +158,22 @@ def aggregate_bo_results(input_file: str, output_dir: str, results_file: str) ->
             # "best_value_mean",
             # "best_value_std",
             "best_value_median",
-            "best_value_q1",
-            "best_value_q3",
+            # "best_value_q1",
+            # "best_value_q3",
             # "acqf_opt_time_mean",
             # "acqf_opt_time_std",
             "acqf_opt_time_median",
-            "acqf_opt_time_q1",
-            "acqf_opt_time_q3",
+            # "acqf_opt_time_q1",
+            # "acqf_opt_time_q3",
             # "avg_nits_mean",
             # "avg_nits_std",
             "med_nits_median",
-            "med_nits_q1",
-            "med_nits_q3",
+            # "med_nits_q1",
+            # "med_nits_q3",
             # "mean_speedup",
-            # "median_speedup",
+            "time_ratio_to_seqopt",
+            "iter_ratio_to_seqopt",
+            "best_value_ratio_to_seqopt",
             # "Best Value (mean ± std.)",
             # "Best Value (median [IQR])",
             # "Acq. Opt. (sec, mean ± std.)",

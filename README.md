@@ -1,20 +1,25 @@
 # aaai2026-anon-exp
 Recommended Python version: 3.12
 
-## Setup virtual environment and install dependencies:
+## Setup and Run Experiments
+
+Setup:
 ```sh
+# Create virtual environment and install dependencies
 python -m venv venv
+# Activate virtual environment
 source venv/bin/activate
+# Install dependencies
 pip install -r requirements.txt
-chmod +x run_toy_opt.sh
-chmod +x run_bo.sh
+# Or install packages manually
+# pip install optunahub coco-experiment optproblems diversipy torch scipy matplotlib pandas greenlet
 ```
 
-## Run experiments:
+Run experiments:
 ```sh
-# Convergence analysis and Hessian comparison on toy problem (Rosenbrock function optimization)
-./run_toy_opt.sh
-
-# BBOB benchmark experiments
-./run_bo.sh
+# Run experiments
+# Make run.sh executable (only need to do this once)
+chmod +x run.sh
+# Execute the script
+./run.sh
 ```

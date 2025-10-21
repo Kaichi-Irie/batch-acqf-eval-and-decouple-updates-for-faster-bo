@@ -1,4 +1,17 @@
-N_TRIALS: 30 # Number of trials for each run
-n_seeds: 2 # Random seed (used seeds: 0 - n_seeds-1)
-function_ids: [0, 1] # BBOB function ID (1-24) or 0 for original sphere function
-dimensions: [2, 3] # BBOB problem dimension (2, 3, 5, 10, 20, 40)
+# Number of trials for each run
+# In our experiments, we used n_trials=300
+n_trials: 30
+# Random seed (used seeds: 0 - n_seeds-1)
+# In our experiments, we used n_seeds=20
+n_seeds: 2
+
+# BBOB function ID (1-24) or 0 for original sphere function
+# In our experiments, we used:
+# 0 for (original) Sphere Function
+# 6 for Attractive Sector Function
+# 15 for Rastrigin Function
+function_ids: [0, 6, 15]
+
+# problem dimensions
+# In our experiments, we used 5, 10, 20, and 40
+dimensions: [2, 3]

@@ -123,7 +123,7 @@ def compare_hess_and_error(
     plt.tight_layout()
     if filename:
         plt.savefig(os.path.join(output_dir, filename))
-    plt.show()
+    # plt.show()
 
 
 def relative_error_fro(hess_true: np.ndarray, hess_approx: np.ndarray) -> float:
@@ -210,6 +210,5 @@ def plot_hessian_triplet(
     cbar.ax.tick_params(labelsize=15)
 
     fig.savefig(out_pdf_path, dpi=300, bbox_inches="tight", pad_inches=0.03)
-    plt.show()
-    plt.close(fig)
+    # plt.show()
     return out_pdf_path

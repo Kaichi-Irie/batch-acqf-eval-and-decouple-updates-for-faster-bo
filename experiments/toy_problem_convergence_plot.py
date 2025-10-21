@@ -101,7 +101,6 @@ if __name__ == "__main__":
         q50s,
         q75s,
         labels,
-        "Convergence Comparison (median ± IQR)",
-        ylabel="Objective Value",
+        ylabel="$\log_{10}$ Objective",
         outpath=os.path.join(args.output_dir, f"{filename}.pdf"),
     )
