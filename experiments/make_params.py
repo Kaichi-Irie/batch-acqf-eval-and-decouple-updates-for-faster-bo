@@ -13,12 +13,12 @@ if __name__ == "__main__":
     with open(args.config, "r") as f:
         config = yaml.safe_load(f)
 
-    N_TRIALS = config["N_TRIALS"]
+    n_trials = config["n_trials"]
     n_seeds = config["n_seeds"]
     function_ids = config["function_ids"]
     dimensions = config["dimensions"]
 
     with open(args.output, "w") as f:
         for fid, dim in product(function_ids, dimensions):
-            f.write(f"{n_seeds}\t{fid}\t{dim}\t{N_TRIALS}\n")
+            f.write(f"{n_seeds}\t{fid}\t{dim}\t{n_trials}\n")
     print("Parameters saved to", args.output)
