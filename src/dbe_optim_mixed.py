@@ -50,13 +50,13 @@ def _gradient_ascent_batched(
     ) -> tuple[np.ndarray, np.ndarray]:
         # Scale back to the original domain, i.e. [0, 1], from [0, 1/s].
         if scaled_x.ndim == 1:
-            # NOTE(Kaichi-Irie): When scaled_x is 1D, regard it as a single batch.
+            # NOTE: When scaled_x is 1D, regard it as a single batch.
             scaled_x = scaled_x[None]
         assert scaled_x.ndim == 2
         normalized_params[np.ix_(batch_indices, continuous_indices)] = (
             scaled_x * lengthscales
         )
-        # NOTE(Kaichi-Irie): If fvals.numel() > 1, backward() cannot be computed, so we sum up.
+        # NOTE: If fvals.numel() > 1, backward() cannot be computed, so we sum up.
         x_tensor = torch.from_numpy(normalized_params[batch_indices]).requires_grad_(
             True
         )
