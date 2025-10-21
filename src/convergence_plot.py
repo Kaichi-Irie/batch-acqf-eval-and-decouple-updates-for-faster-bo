@@ -16,6 +16,19 @@ plt.rcParams["text.usetex"] = True
 plt.rcParams["font.family"] = "Times New Roman"  # Fonts
 
 
+# Okabe–Ito colorblind-safe palette (8 colors)
+OKABE_ITO = [
+    "#D55E00",  # vermilion
+    "#56B4E9",  # sky blue
+    "#009E73",  # bluish green
+    "#0072B2",  # blue
+    "#F0E442",  # yellow
+    "#E69F00",  # orange
+    "#CC79A7",  # reddish purple
+    "#000000",  # black
+]
+
+
 def run_cbe_with_history(
     xs0: np.ndarray, method: str, lb: float, ub: float, memory_size: int = 10
 ) -> tuple[Any, list[float]]:
@@ -33,15 +46,20 @@ def run_cbe_with_history(
             bounds=[(lb, ub)] * (batch_size * dim) if method == "L-BFGS-B" else None,
             callback=lambda xk: history.append(f(xk)),
             m=memory_size,
+            pgtol=1e-12,
+            maxiter=100_000,
+            maxfun=150_000,
+            factr=10,
         )
         return res, history
     elif method == "BFGS":
-        res = opt.minimize(
+        res = opt.fmin_bfgs(
             f,
             xs0.flatten(),
-            method=method,
-            jac=g,
+            fprime=g,
             callback=lambda xk: history.append(f(xk)),
+            gtol=1e-12,
+            maxiter=300_000,
         )
         return res, history
     else:
@@ -55,7 +73,6 @@ def calculate_average_per_batch(histories: list[float], batch_size: int) -> list
 def plot_convergence(
     curves: list[list[float]],
     labels: list[str],
-    title: str,
     stds: list[list[float]] | None = None,
     outpath: str | None = None,
 ) -> None:
@@ -65,14 +82,13 @@ def plot_convergence(
         plt.plot(curve, label=label)
     plt.xlabel("Iterations (per batched problems)")
     plt.ylabel("Total Objective Function Value")
-    plt.title(title)
     plt.legend()
     plt.yscale("log")
     plt.grid(True, which="both", linestyle="--", linewidth=0.5)
     plt.tight_layout()
     if outpath:
         plt.savefig(outpath)
-    plt.show()
+    # plt.show()
 
 
 def pad_histories_to_same_length(histories: list[list[float]]) -> np.ndarray:
@@ -131,7 +147,7 @@ def plot_mean_and_std(
     plt.tight_layout()
     if outpath:
         plt.savefig(outpath)
-    plt.show()
+    # plt.show()
 
 
 def plot_with_quartiles(
@@ -139,18 +155,18 @@ def plot_with_quartiles(
     q50s: list[np.ndarray],
     q75s: list[np.ndarray],
     labels: list[str],
-    title: str,
     ylabel: str = "Objective (log scale)",
     outpath: str | None = None,
 ) -> None:
     assert len(q25s) == len(q50s) == len(q75s) == len(labels)
 
-    plt.figure(figsize=(5, 2.5))
+    plt.figure(figsize=(5.5, 2.5))
 
-    for q25, q50, q75, label in zip(q25s, q50s, q75s, labels):
+    for i, q25, q50, q75, label in zip(range(len(q25s)), q25s, q50s, q75s, labels):
         x = np.arange(len(q50))
-        plt.plot(x, q50, label=label)
-        plt.fill_between(x, q25, q75, alpha=0.1)
+        color = OKABE_ITO[i % len(OKABE_ITO)]
+        plt.plot(x, q50, label=label, color=color)
+        plt.fill_between(x, q25, q75, alpha=0.1, facecolor=color)
         if len(x) > 225:
             plt.xlim(0, 225)
 
@@ -160,9 +176,8 @@ def plot_with_quartiles(
     plt.ylabel(ylabel, fontsize=14)
     # if n_iterations is more than 200, set xlim
     # plt.ylim(1e-7, 1e2)
-    plt.title(title, fontsize=16)
     plt.legend()
     plt.tight_layout()
     if outpath:
         plt.savefig(outpath)
-    plt.show()
+    # plt.show()
