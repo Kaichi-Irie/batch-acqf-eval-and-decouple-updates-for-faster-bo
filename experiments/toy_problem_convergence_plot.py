@@ -101,6 +101,6 @@ if __name__ == "__main__":
         q50s,
         q75s,
         labels,
-        ylabel="$\log_{10}$ Objective",
+        ylabel="Objective Mean",
         outpath=os.path.join(args.output_dir, f"{filename}.pdf"),
     )
