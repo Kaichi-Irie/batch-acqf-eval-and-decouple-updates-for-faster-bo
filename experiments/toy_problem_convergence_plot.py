@@ -9,7 +9,6 @@ import numpy as np
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.benchmark_funcs import get_rosen_minimum
 from src.convergence_plot import (
-    calculate_average_per_batch,
     plot_with_quartiles,
     run_cbe_with_history,
     stats_from_histories,
@@ -77,11 +76,11 @@ if __name__ == "__main__":
 
         random_seed_histories = []
         for xs0 in random_initial_points:
-            res, hist = run_cbe_with_history(
+            res, fvals = run_cbe_with_history(
                 xs0, args.method, LB, UB, memory_size=memory_size
             )
-            hist = calculate_average_per_batch(hist, batch_size)
-            random_seed_histories.append(hist)
+            fvals_per_batch = [fval / batch_size for fval in fvals]
+            random_seed_histories.append(fvals_per_batch)
 
         q25, q50, q75 = stats_from_histories(random_seed_histories)
         q25s.append(q25)

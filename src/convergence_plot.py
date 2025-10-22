@@ -34,7 +34,7 @@ def run_cbe_with_history(
 ) -> tuple[Any, list[float]]:
     assert xs0.ndim == 2
     batch_size, dim = xs0.shape
-    history = []
+    fvals_history = []
     f = couple_f(rosenbrock_func, batch_size, dim)
     g = couple_grad(rosenbrock_grad, batch_size, dim)
 
@@ -44,30 +44,26 @@ def run_cbe_with_history(
             xs0.flatten(),
             fprime=g,
             bounds=[(lb, ub)] * (batch_size * dim) if method == "L-BFGS-B" else None,
-            callback=lambda xk: history.append(f(xk)),
+            callback=lambda xk: fvals_history.append(f(xk)),
             m=memory_size,
             pgtol=1e-12,
             maxiter=100_000,
             maxfun=150_000,
             factr=10,
         )
-        return res, history
+        return res, fvals_history
     elif method == "BFGS":
         res = opt.fmin_bfgs(
             f,
             xs0.flatten(),
             fprime=g,
-            callback=lambda xk: history.append(f(xk)),
+            callback=lambda xk: fvals_history.append(f(xk)),
             gtol=1e-12,
             maxiter=300_000,
         )
-        return res, history
+        return res, fvals_history
     else:
         raise NotImplementedError(f"Method {method} is not implemented.")
-
-
-def calculate_average_per_batch(histories: list[float], batch_size: int) -> list[float]:
-    return [fval / batch_size for fval in histories]
 
 
 def plot_convergence(
@@ -174,8 +170,6 @@ def plot_with_quartiles(
     plt.grid(True, which="both", linestyle="--", linewidth=0.5)
     plt.xlabel("Iterations", fontsize=14)
     plt.ylabel(ylabel, fontsize=14)
-    # if n_iterations is more than 200, set xlim
-    # plt.ylim(1e-7, 1e2)
     plt.legend()
     plt.tight_layout()
     if outpath:
