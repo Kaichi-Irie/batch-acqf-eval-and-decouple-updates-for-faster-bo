@@ -7,7 +7,6 @@ import numpy as np
 from optuna._imports import try_import
 from optuna.logging import get_logger
 
-
 with try_import() as _greenlet_imports:
     from greenlet import greenlet
 
@@ -41,9 +40,9 @@ def _batched_lbfgsb(
     max_iters: int,
     max_line_search: int,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    assert (
-        x0_batched.ndim == 2
-    ), f"The shape of x0 must be (batch_size, dim), but got {x0_batched.shape}."
+    assert x0_batched.ndim == 2, (
+        f"The shape of x0 must be (batch_size, dim), but got {x0_batched.shape}."
+    )
     batch_size = len(x0_batched)
     xs_opt = np.empty_like(x0_batched)
     fvals_opt = np.empty(batch_size, dtype=float)
@@ -77,7 +76,9 @@ def _batched_lbfgsb(
 
     while np.any(is_remaining_batch):
         remaining_batch_indices = np.where(is_remaining_batch)[0]
-        fvals, grads = func_and_grad(np.asarray(x_batched), np.asarray(remaining_batch_indices))
+        fvals, grads = func_and_grad(
+            np.asarray(x_batched), np.asarray(remaining_batch_indices)
+        )
 
         x_batched = []
         next_greenlets = []
@@ -102,9 +103,8 @@ def batched_lbfgsb(
     max_iters: int = 15000,
     max_line_search: int = 20,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-
     if _greenlet_imports.is_successful() and len(x0_batched) > 1:
-        # NOTE(Kaichi-Irie): when batch size is 1, using greenlet causes context-switch overhead.
+        # NOTE: when batch size is 1, using greenlet causes context-switch overhead.
         xs_opt, fvals_opt, n_iterations = _batched_lbfgsb(
             func_and_grad=func_and_grad,
             x0_batched=x0_batched,
