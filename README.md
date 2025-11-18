@@ -1,4 +1,4 @@
-# aaai2026-anon-exp
+# Reproducibility Code for "Batch Acquisition Function Evaluations and Decouple Optimizer Updates for Faster Bayesian Optimization"
 Recommended Python version: 3.12
 
 ## Project Layout
